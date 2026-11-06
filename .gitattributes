@@ -1,0 +1,10 @@
+# Canonical byte policy: everywhere and every platform checks out the same bytes.
+# core.autocrlf=true (the Windows default) must not corrupt load-bearing digests.
+* text=auto eol=lf
+
+# Raw source captures — exact bytes are load-bearing: hashed by
+# engine.source_integrity() against sources/manifest.json SHA-256s.
+sources/** -text !eol
+
+# Compiled policy — byte-stable for policy_digest() and review receipts.
+hackathon_judge/requirements.json -text !eol

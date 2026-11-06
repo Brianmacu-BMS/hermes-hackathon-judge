@@ -120,13 +120,23 @@ def _valid_catalog_name(name):
 
 
 def _hosted_url(url):
-    """Check url is https on raw.githubusercontent.com, github.com or *.githubusercontent.com."""
+    """Check url is https on raw.githubusercontent.com, github.com or *.githubusercontent.com.
+
+    Matches the captured official catalog policy ("Images must live on
+    raw.githubusercontent.com, github.com or *.githubusercontent.com",
+    sources/catalog-readme.md) and the upstream loader's IMAGE_HOSTS /
+    IMAGE_HOST_SUFFIX admission. www.github.com is not an admitted host.
+    urlparse normalizes scheme/hostname; hostname matching ignores userinfo
+    and ports, as the upstream metadata filter does. No URL is fetched here.
+    """
     try:
         parts = urlparse(url)
-        return parts.scheme == 'https' and parts.hostname in {
-            'raw.githubusercontent.com', 'github.com', 'www.github.com',
-        } or (parts.hostname and parts.hostname.endswith('.githubusercontent.com'))
-    except (ValueError, TypeError):
+        host = parts.hostname or ''
+        return parts.scheme == 'https' and (
+            host in {'raw.githubusercontent.com', 'github.com'}
+            or host.endswith('.githubusercontent.com')
+        )
+    except (AttributeError, TypeError, ValueError):
         return False
 
 

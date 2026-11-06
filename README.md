@@ -1,6 +1,6 @@
 # Hermes Hackathon Judge
 
-**Version 0.2.0 — source-grounded plugin preflight and evidence-backed review.**
+**Version 0.2.1 — source-grounded plugin preflight and evidence-backed review.**
 
 Hackathon Judge helps plugin authors find submission problems before reviewers do. It inspects source without importing candidate code, runs through the complete captured policy checklist, and can complete an **accountable reviewer assessment** when every required decision has source-bound evidence. It is not an official Nous judge, a security sandbox, or a substitute for watching the demo.
 
@@ -43,7 +43,7 @@ There is no custom Desktop renderer/DOM integration. Native conversation/command
 
 ## Evidence-backed review
 
-See [the review contract](docs/review-contract.md). Generate the template, inspect the actual source and external evidence, and fill `decisions` with a named reviewer, timezone-aware timestamp, reason and SHA-256-bound local evidence documents. Every source finding also needs an explicit disposition. Evidence paths are relative to the review document's directory; escaping paths, symlinks and recognized credential stores are refused.
+See [the review contract](docs/review-contract.md). Generate the template, inspect the actual source and external evidence, and fill `decisions` with a named reviewer, timezone-aware timestamp, reason and SHA-256-bound local evidence documents. Every source finding also needs an explicit disposition. Evidence paths are relative to the review document's directory; escaping paths, symlinks, junctions/reparse points and recognized credential stores are refused.
 
 `PRE-03` additionally requires a structured real validator receipt binding the before/after candidate digests, `--install-deps` invocation, exit code and official JSON. Validator cautions require an explicit acknowledgement of the exact warnings digest. A changed tree or policy makes the review stale. Review records do not alter the original static observations.
 
@@ -79,7 +79,9 @@ Both execute trusted plugin code. Doctor's temporary profile is not a sandbox. `
 
 ## Coverage and limitations
 
-Default limits: 10,000 file entries, 10,000 directory entries, 2 MB per candidate file and 32 MB total; evidence documents are separately bounded to 1 MB each, 128 unique documents and 16 MB aggregate per assessment, with shared documents cached. Symlinks, special files, unreadable paths and budget exhaustion prevent readiness. Read operations are bounded but are not a hardened sandbox against malicious concurrent ancestor-directory replacement.
+Default limits: 10,000 file entries, 10,000 directory entries, 2 MB per candidate file and 32 MB total; evidence documents are separately bounded to 1 MB each, 128 unique documents and 16 MB aggregate per assessment, with shared documents cached. Symlinks, junctions/reparse points, special files, unreadable paths and budget exhaustion prevent readiness. Read operations are bounded but are not a hardened sandbox against malicious concurrent ancestor-directory replacement.
+
+Path checks inspect lexical components **before** resolution, including the selected root and its ancestors. Linked/reparse roots are invalid requests; linked/reparse descendants are pruned and make inventory incomplete. Explicit document reads refuse them even when their targets stay in scope. The legacy JSON `symlinks` list includes refused junctions/reparse paths too. This deliberately rejects all reparse tags, including managed cloud directories: use an ordinary local copy instead. The source archive builder uses the same stable-path guard.
 
 `.git`, virtual environments, dependency caches and `evidence/` are excluded and listed. Runtime heuristic scanning excludes tests/fixtures/source-documentation directories; inventory and payload checks still inspect them outside ignored directories. Bundled runtime code in excluded directories needs explicit review. Archives are flagged, not unpacked. Header-based binary detection is heuristic and does not verify native build attestations.
 
@@ -103,4 +105,8 @@ The deadline is **November 11, 2026, 5PM EST (UTC-05:00)**. The announcement bod
 PYTHONDONTWRITEBYTECODE=1 python -m unittest discover -s tests -v
 ```
 
-Use a disposable non-Hermes test environment for `requirements-test.txt`. The GitHub workflow is a prepared CI definition, not a claim it already ran remotely. Source-only release tooling and a real CLI demo workflow live under `scripts/`; local submission/PR/demo handoffs live under `submission/`. Missing repository/SHA/PR/X/form evidence is deliberately not filled with invented values. Keep release receipts outside distributed source and never ship caches or credentials.
+Use a disposable non-Hermes test environment for `requirements-test.txt`. CI defines the full Linux Python 3.11–3.14 suite and focused native Windows path/URL/checkout regressions; a workflow definition is not a passing result. Windows junction tests skip on Linux, and Linux attribute models do not establish native Windows acceptance. The catalog-entry generator remains Linux-only until broader runtime qualification is available.
+
+`.gitattributes` enforces LF for text and executable scripts while preserving the exact bytes of packaged source captures and compiled policy. Never regenerate capture hashes merely to conceal checkout conversion. Checkout/archive regressions exercise `core.autocrlf=true` in disposable repositories without changing global Git settings.
+
+Source-only release tooling and a real CLI demo workflow live under `scripts/`; submission/PR/demo handoffs live under `submission/`. Repaired source needs a new immutable public commit and new qualification receipts; passing CI or reviews for an earlier commit do not qualify an edited tree. Final SHA/PR/X/form evidence is deliberately not filled with invented values. Keep release receipts outside distributed source and never ship caches or credentials.

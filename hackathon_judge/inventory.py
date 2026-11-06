@@ -1,8 +1,8 @@
-"""Bounded filesystem inspection. Never follows symlinks or reads secret stores."""
+"""Bounded inspection. Refuse stable links/reparse points and secret stores."""
 import hashlib
 import os
 from pathlib import Path
-import stat
+from .paths import UnsafePath, guarded_path, read_regular
 
 SKIP_DIRS = {'.git', '.venv', 'venv', 'node_modules', '.pytest_cache', '.ruff_cache', 'evidence'}
 SENSITIVE = {'auth.json', 'credentials.json', 'secrets.json', 'id_rsa', 'id_ed25519', 'id_ecdsa', 'id_dsa', '.npmrc', '.pypirc', '.netrc', '.git-credentials', '.dockercfg'}
@@ -15,8 +15,11 @@ def sensitive(name):
 
 
 def inventory(root, *, max_files=10000, max_directories=10000, max_file_bytes=2_000_000, max_total_bytes=32_000_000):
-    root = Path(root).expanduser().resolve(strict=True)
-    if not root.is_dir() or any(p.name in SENSITIVE_DIRS for p in (root, *root.parents)):
+    root = Path(root).expanduser().absolute()
+    if any(p.name in SENSITIVE_DIRS or sensitive(p.name) for p in (root, *root.parents)):
+        raise ValueError('Secret-store candidate paths are refused')
+    root = guarded_path(root)
+    if not root.is_dir():
         raise ValueError('Candidate path must be a directory')
     if min(max_files, max_directories, max_file_bytes, max_total_bytes) <= 0:
         raise ValueError('Inspection budgets must be positive')
@@ -42,13 +45,20 @@ def inventory(root, *, max_files=10000, max_directories=10000, max_file_bytes=2_
             if name in SENSITIVE_DIRS or sensitive(name):
                 result['excluded_sensitive'].append(rel + '/')
                 result['complete'] = False
-            elif p.is_symlink():
-                result['symlinks'].append(rel)
-                result['complete'] = False
-            elif name in SKIP_DIRS:
-                result['ignored_directories'].append(rel)
             else:
-                kept.append(name)
+                try:
+                    guarded_path(p, root=root)
+                except UnsafePath:
+                    result['symlinks'].append(rel)
+                    result['complete'] = False
+                except (OSError, ValueError):
+                    result['omitted'].append(rel + '/')
+                    result['complete'] = False
+                else:
+                    if name in SKIP_DIRS:
+                        result['ignored_directories'].append(rel)
+                    else:
+                        kept.append(name)
         dirs[:] = kept
         for name in files:
             seen += 1
@@ -63,27 +73,16 @@ def inventory(root, *, max_files=10000, max_directories=10000, max_file_bytes=2_
                 result['excluded_sensitive'].append(rel)
                 result['complete'] = False
                 continue
-            if p.is_symlink():
-                result['symlinks'].append(rel)
-                result['complete'] = False
-                continue
             try:
-                # O_NOFOLLOW closes final-component symlink swaps on POSIX. Stable,
-                # non-adversarial local trees are required; this is not a sandbox.
-                fd = os.open(p, os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_NONBLOCK', 0))
-                with os.fdopen(fd, 'rb') as stream:
-                    info = os.fstat(stream.fileno())
-                    if not stat.S_ISREG(info.st_mode):
-                        raise ValueError('Not a regular file')
-                    if info.st_size > max_file_bytes or result['bytes_read'] + info.st_size > max_total_bytes:
-                        raise ValueError('Byte budget exceeded')
-                    raw = stream.read(max_file_bytes + 1)
-                    if len(raw) > max_file_bytes or result['bytes_read'] + len(raw) > max_total_bytes:
-                        raise ValueError('File grew past byte budget')
+                raw = read_regular(p, root=root, max_bytes=max_file_bytes,
+                                   remaining_bytes=max_total_bytes - result['bytes_read'])
                 result['bytes_read'] += len(raw)
                 digest = hashlib.sha256(raw).hexdigest()
                 result['files'].append({'path': rel, 'bytes': len(raw), 'sha256': digest})
                 data[rel] = raw
+            except UnsafePath:
+                result['symlinks'].append(rel)
+                result['complete'] = False
             except (OSError, ValueError):
                 result['omitted'].append(rel)
                 result['complete'] = False
@@ -101,16 +100,7 @@ def fingerprint(files):
 def read_document(path, root=None):
     """Read an explicitly supplied non-secret regular document, bounded to 1 MiB."""
     p = Path(path).expanduser().absolute()
-    if sensitive(p.name) or any(x.name in SENSITIVE_DIRS or x.is_symlink() for x in (p, *p.parents)):
-        raise ValueError('Secret files and symlinked documents are refused')
-    if root is not None and not p.resolve().is_relative_to(root):
-        raise ValueError('Document must be inside the candidate directory')
-    fd = os.open(p, os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_NONBLOCK', 0))
-    with os.fdopen(fd, 'rb') as stream:
-        info = os.fstat(stream.fileno())
-        if not stat.S_ISREG(info.st_mode) or info.st_size > 1_000_000:
-            raise ValueError('Document missing, non-regular, or exceeds 1 MiB')
-        raw = stream.read(1_000_001)
-        if len(raw) > 1_000_000:
-            raise ValueError('Document grew past 1 MiB')
+    if any(x.name in SENSITIVE_DIRS or sensitive(x.name) for x in (p, *p.parents)):
+        raise ValueError('Secret document paths are refused')
+    raw = read_regular(p, root=root, max_bytes=1_000_000)
     return raw.decode('utf-8')

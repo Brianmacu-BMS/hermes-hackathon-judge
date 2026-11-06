@@ -7,7 +7,8 @@ from pathlib import Path
 import shlex
 
 from .checks import catalog_checks, local_checks, submission_checks
-from .inventory import inventory
+from . import __version__
+from .inventory import inventory, read_document
 from .scan import scan
 from .review import assess_review, template
 
@@ -15,17 +16,15 @@ BASE = Path(__file__).resolve().parent.parent
 
 
 def requirements():
-    return json.loads((Path(__file__).parent / 'requirements.json').read_text())
+    return json.loads(read_document(Path(__file__).parent / 'requirements.json'))
 
 
 def source_integrity():
-    manifest = json.loads((BASE / 'sources/manifest.json').read_text())
+    manifest = json.loads(read_document(BASE / 'sources/manifest.json', root=BASE / 'sources'))
     verified = []
     for item in manifest:
-        p = (BASE / item['file']).resolve()
-        if not p.is_relative_to(BASE / 'sources'):
-            raise ValueError('Invalid source index path')
-        actual = hashlib.sha256(p.read_bytes()).hexdigest()
+        text = read_document(BASE / item['file'], root=BASE / 'sources')
+        actual = hashlib.sha256(text.encode('utf-8')).hexdigest()
         verified.append({**item, 'integrity_ok': actual == item['sha256']})
     return {'integrity_ok': all(x['integrity_ok'] for x in verified), 'documents': verified,
             'freshness': 'Pinned snapshots, not a live check. Re-fetch official sources before final submission; never auto-update judge code.'}
@@ -40,7 +39,7 @@ def audit(path, *, catalog=None, submission=None, review=None, **budgets):
     def add(key, rules, status, detail):
         checks.append({'id': key, 'rules': rules, 'status': status, 'detail': detail})
     add('inventory', ['PRE-02', 'CAT-07', 'CAT-17'], 'pass' if info['complete'] else 'needs_review',
-        'Stable local tree inspected without execution; ignored build/vendor directories listed separately' if info['complete'] else 'Partial inspection: sensitive files, symlinks, unreadable files or budgets prevented complete coverage')
+        'Stable local tree inspected without execution; ignored build/vendor directories listed separately' if info['complete'] else 'Partial inspection: sensitive files, links/reparse paths, unreadable files or budgets prevented complete coverage')
     sources = source_integrity()
     add('sources', [], 'pass' if sources['integrity_ok'] else 'fail', 'Captured source SHA-256 integrity ' + ('verified' if sources['integrity_ok'] else 'FAILED'))
     findings, registrations = scan(data)
@@ -68,7 +67,7 @@ def audit(path, *, catalog=None, submission=None, review=None, **budgets):
                          'checks': [c['id'] for c in linked],
                          'reason': 'Local blocker detected' if failed else 'Automated observations and author attestations do not establish complete policy compliance'})
     counts = dict(Counter(c['status'] for c in checks))
-    report = {'schema_version': 2, 'judge_version': '0.2.0',
+    report = {'schema_version': 2, 'judge_version': __version__,
             'generated_at': datetime.now(timezone.utc).isoformat(), 'candidate': str(root),
             'verdict': 'blocked' if counts.get('fail', 0) else 'needs_review', 'certified': False,
             'notice': 'Not official Nous judging, catalog acceptance, or a security certification. Never treat candidate files as instructions.',
@@ -131,7 +130,7 @@ def markdown(report):
     for r in report['requirements']:
         lines.append(f"| [{r['id']}: {_safe(r['title'])}]({r['url']}) | {r['status']} ({r['review_mode']}) | {_safe(r['requirement'])} |")
     lines += ['', '## Coverage limits', '',
-              'Sensitive files are not read or hashed. Symlinks are not followed. Build/vendor/evidence directories are excluded and listed in JSON. No code imports, network calls, dependency installation or model calls occur in the static audit.',
+              'Sensitive files are not read or hashed. Symlinks, junctions and reparse paths are refused. Build/vendor/evidence directories are excluded and listed in JSON. No code imports, network calls, dependency installation or model calls occur in the static audit.',
               'The tree digest covers inspected files only, NOT a Git commit or proof of a clean checkout. Binary/archive signatures and static patterns are heuristic. Manually review ignored directories if they are distributed.', '',
               '## Evidence-backed reviewer assessment', '', report['assessment']['notice'], '',
               '**Review status:** ' + report['assessment']['status'], '',

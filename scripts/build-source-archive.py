@@ -24,6 +24,10 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from hackathon_judge import __version__
+from hackathon_judge.paths import guarded_path, read_regular
+
 
 # ---------------------------------------------------------------------------
 # Inclusion / exclusion rules
@@ -40,6 +44,7 @@ INCLUDE_PATTERNS = (
     "requirements-test.txt",
     "LICENSE",
     ".gitignore",
+    ".gitattributes",
     "README.md",
     "PLAN.md",
     # Python package
@@ -75,6 +80,8 @@ EXCLUDE_DIRS = frozenset({
     ".coverage_cache",
     "evidence",
 })
+
+SENSITIVE_DIRS = frozenset({'.ssh', '.aws', '.gnupg', '.codex', '.kube'})
 
 # Secret-like filenames — inclusion of any of these is a HARD REJECT that
 # fails the build.
@@ -174,6 +181,11 @@ def _load_gitignore(source_root: Path) -> list[str]:
 
 def _iter_included(source_root: Path) -> list[tuple[str, Path, bool]]:
     """Inventory before filtering: unknown paths must not hide unsafe inputs."""
+    for component in (source_root, *source_root.parents):
+        if component.name in SENSITIVE_DIRS:
+            raise RejectedFile('REJECTED: credential-store source path')
+        _reject_secret(component.name, component.name)
+    source_root = guarded_path(source_root)
     results: list[tuple[str, Path, bool]] = []
     def walk_error(error):
         raise RejectedFile('REJECTED: unreadable source directory')
@@ -185,17 +197,23 @@ def _iter_included(source_root: Path) -> list[tuple[str, Path, bool]]:
         kept = []
         for name in sorted(dirs):
             path = Path(directory) / name
-            if path.is_symlink():
-                raise RejectedFile('REJECTED: symlinked source directory')
-            if name in {'.ssh', '.aws', '.gnupg', '.codex', '.kube'}:
+            try:
+                guarded_path(path, root=source_root)
+            except (OSError, ValueError) as exc:
+                raise RejectedFile('REJECTED: unsafe source directory') from exc
+            if name in SENSITIVE_DIRS:
                 raise RejectedFile('REJECTED: credential-store directory')
             if name not in EXCLUDE_DIRS:
                 kept.append(name)
         dirs[:] = kept
         for name in sorted(files):
             path = Path(directory) / name
-            if path.is_symlink() or not path.is_file():
-                raise RejectedFile('REJECTED: non-regular or symlinked source file')
+            try:
+                guarded_path(path, root=source_root)
+            except (OSError, ValueError) as exc:
+                raise RejectedFile('REJECTED: unsafe source file') from exc
+            if not stat.S_ISREG(path.lstat().st_mode):
+                raise RejectedFile('REJECTED: non-regular source file')
             results.append((path.relative_to(source_root).as_posix(), path, False))
             if len(results) > 10000:
                 raise RejectedFile('REJECTED: file-count budget exceeded')
@@ -255,14 +273,13 @@ def build_archive(
             "changed_during_build": [str, ...],
         }
     """
-    source_root = source_root.resolve()
-    if not source_root.is_dir():
-        return {"ok": False, "error": f"Source root {source_root} is not a directory"}
-
     # ── Gather included files ──────────────────────────────────────────
     try:
+        source_root = guarded_path(source_root)
+        if not source_root.is_dir():
+            return {"ok": False, "error": "Source root is not a directory"}
         included = _iter_included(source_root)
-    except (OSError, RejectedFile) as exc:
+    except (OSError, ValueError) as exc:
         return {'ok': False, 'error': str(exc)}
 
     # Collect warnings / rejections
@@ -296,14 +313,10 @@ def build_archive(
 
         # Read and validate content
         try:
-            if fpath.stat().st_size > 2_000_000:
-                raise RejectedFile('REJECTED: source file exceeds 2 MB budget')
-            with fpath.open('rb') as stream:
-                raw = stream.read(2_000_001)
+            raw = read_regular(fpath, root=source_root, max_bytes=2_000_000,
+                               remaining_bytes=32_000_000 - total_read)
             total_read += len(raw)
-            if len(raw) > 2_000_000 or total_read > 32_000_000:
-                raise RejectedFile('REJECTED: source byte budget exceeded')
-        except (OSError, RejectedFile) as e:
+        except (OSError, ValueError) as e:
             rejects.append(f"CANNOT_READ: {rel_for_error} — {e}")
             continue
 
@@ -377,12 +390,16 @@ def build_archive(
 
     # ── Change detection: re-check source tree ─────────────────────────
     changed: list[str] = []
-    current_files = _iter_included(source_root)
+    try:
+        current_files = _iter_included(source_root)
+    except (OSError, ValueError):
+        return {'ok': False, 'error': 'Source became unsafe or inaccessible during packaging'}
     changed.extend(sorted(set(change_fingerprints) ^ {rel for rel, _, _ in current_files}))
     for rel, fpath, _ in current_files:
         try:
-            current = hashlib.sha256(fpath.read_bytes()).hexdigest()
-        except OSError:
+            raw = read_regular(fpath, root=source_root, max_bytes=2_000_000)
+            current = hashlib.sha256(raw).hexdigest()
+        except (OSError, ValueError):
             current = ""
         original = change_fingerprints.get(rel, "")
         if current != original:
@@ -401,7 +418,7 @@ def build_archive(
 
     manifest = {
         "tool": "scripts/build-source-archive.py",
-        "version": "0.2.0",
+        "version": __version__,
 
         "archive": archive_path.name,
         "files_included": len(manifest_entries),
@@ -474,7 +491,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-    source_root = Path(args.source).expanduser().resolve()
+    source_root = Path(args.source).expanduser().absolute()
 
     output_dir: Path
     if args.output:
