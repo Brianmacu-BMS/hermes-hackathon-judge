@@ -183,9 +183,17 @@ def main(core, source):
     allowed = run('native-validation', [sys.executable, __file__, '--probe', 'allowed', str(candidate)])
     probes = [json.loads(next(line.split('PROBE_RESULT=', 1)[1] for line in text.splitlines()
                               if line.startswith('PROBE_RESULT='))) for text in (denied, allowed)]
+    run('doctor-qualified-source', cli + ['plugins', 'doctor', str(source), '--ci'])
+    qualification = json.loads(run('validate-qualified-source', cli +
+                                   ['plugins', 'validate', str(source), '--install-deps', '--json']))
+    require(qualification.get('ok') is True and qualification.get('checks')
+            and all(check.get('ok') is True for check in qualification['checks']),
+            'Full official source qualification failed')
     for relative, digest in hashes.items():
         require(hashlib.sha256((installed / relative).read_bytes()).hexdigest() == digest,
                 'Installed source changed during acceptance')
+        require(hashlib.sha256((source / relative).read_bytes()).hexdigest() == digest,
+                'Tracked source changed during qualification')
     from pm import paths
     from pm.environments import selected_venv
     require(Path(paths.store_root()).resolve() == Path(os.environ['HERMES_RUNTIME_DIR']).resolve(),
@@ -199,6 +207,7 @@ def main(core, source):
         'runner': os.environ['RUNNER_ENVIRONMENT'], 'home': str(home),
         'python': sys.executable, 'selected_venv': str(selected), 'installed': str(installed),
         'installed_files': hashes, 'discovered': discovered, 'runs': runs, 'probes': probes,
+        'source_qualification': qualification, 'source_qualification_install_deps': True,
         'static_candidate_nonexecution': True, 'activation': 'disposable GitHub runner only',
         'approval_scope': 'real approvals.deny policy refusal, not interactive UI acceptance',
         'models_called': False, 'certified': False}
