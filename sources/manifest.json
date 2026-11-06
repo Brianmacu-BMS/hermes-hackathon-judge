@@ -1,0 +1,39 @@
+[
+  {
+    "id": "announcement",
+    "url": "https://x.com/NousResearch/status/2118094256438936062",
+    "file": "sources/announcement.md",
+    "sha256": "a4cd42d010a2b730dad6a25001df2b8f432e3ffee07dea59cd131e371299ba70",
+    "captured_at": "2026-11-05T16:39:08.221427+00:00"
+  },
+  {
+    "id": "catalog-submission",
+    "url": "https://hermes-agent.nousresearch.com/docs/developer-guide/plugins/catalog-submission",
+    "file": "sources/catalog-submission.md",
+    "sha256": "2b7ad9cd121e84e1548d95c090b5f465d99199bd49b0071699126d0ce0f61adf",
+    "captured_at": "2026-11-05T16:39:08.240105+00:00"
+  },
+  {
+    "id": "developer-guide",
+    "url": "https://hermes-agent.nousresearch.com/docs/developer-guide/plugins",
+    "file": "sources/developer-guide.md",
+    "sha256": "1713bfa1e0179eda875b24f37f91a2012170fd47b0608b6fa661da68dbade2ea",
+    "captured_at": "2026-11-05T16:39:08.293728+00:00"
+  },
+  {
+    "id": "catalog-readme",
+    "url": "https://raw.githubusercontent.com/NousResearch/hermes-agent/main/plugin-catalog/README.md",
+    "file": "sources/catalog-readme.md",
+    "sha256": "5d9ab744164bfc1c48c99d0f3051e4cc9d203cebf355287727eebe7fb176a5f3",
+    "captured_at": "2026-11-05T16:39:08.454520+00:00"
+  },
+  {
+    "id": "announcement-metadata",
+    "url": "https://publish.x.com/oembed?url=https%3A%2F%2Fx.com%2FNousResearch%2Fstatus%2F2118094256438936062",
+    "file": "sources/announcement-oembed.json",
+    "sha256": "e28d3314fa6bc13d7ef7e7d8c599b049675fafe69748f8882b691747cae25c15",
+    "captured_at": "2026-11-05T22:13:04.897822+00:00",
+    "published_date": "November 4, 2026",
+    "notice": "Official X publication-date metadata. Full announcement requirements are separately captured; oEmbed preview body is truncated."
+  }
+]

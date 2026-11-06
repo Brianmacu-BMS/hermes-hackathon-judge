@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "status": "local_handoff_not_submitted",
+  "notice": "Publication is approval-gated. Macu will post the demo and submit the form. MISSING means an actual external prerequisite, never a fabricated completed step.",
+  "plugin": {
+    "name": "hackathon-judge",
+    "version": "0.2.0",
+    "requires_hermes": ">=0.22.5",
+    "tier": "community",
+    "category": "tools"
+  },
+  "repository": {
+    "url": "MISSING: public HTTPS repository after publication approval",
+    "sha": "MISSING: real full 40-hex public source commit",
+    "subdir": ""
+  },
+  "catalog_pr": {
+    "url": "MISSING: opened catalog PR URL",
+    "opened_at": null,
+    "ci_status": "Not run remotely. Maintainer-started CI is an admission gate, not a prerequisite to submit the hackathon form.",
+    "maintainer_review": "Pending after opening; merge is not required to submit the form."
+  },
+  "demo": {
+    "url": "MISSING: Macu's actual X video post URL",
+    "tags_nousresearch": false,
+    "shows_working_plugin": false,
+    "duration_seconds": null,
+    "local_recording": "See local qualification/handoff receipts; a recording is not a public X post.",
+    "requirement": "Real working demonstration, strictly under 90 seconds, posted on X with @NousResearch tagged."
+  },
+  "form_submission": {
+    "form_url": "https://form.typeform.com/to/FwJLvOln",
+    "submitted": false,
+    "submitted_at": null,
+    "confirmation_received": false,
+    "confirmation_id": null,
+    "owner": "Macu"
+  },
+  "event_year": 2026,
+  "deadline": "November 11, 2026 at 5PM EST (UTC-05:00). Year verified from official X oEmbed publication metadata for the exact announcement, saved in sources/announcement-oembed.json; not inferred from the clock.",
+  "remaining_external_steps": [
+    "Approve exact public repository/source publication scope.",
+    "Create or choose public repository, commit/push approved source, verify anonymous clone and exact commit.",
+    "Generate a real catalog YAML pin; validate the clean checkout at that pin and open the catalog PR.",
+    "Macu reviews/posts the real under-90-second demo on X tagging @NousResearch.",
+    "Macu submits the opened PR and demo links via the official form before November 11, 2026 at 5PM EST.",
+    "Retain actual form confirmation. Catalog CI/maintainer acceptance is tracked separately."
+  ],
+  "review_record": "Generate --format template and use decisions/finding_dispositions with actual evidence. Legacy reviews notes are not approvals."
+}

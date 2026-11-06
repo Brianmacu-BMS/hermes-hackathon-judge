@@ -1,0 +1,3 @@
+# Exact CI-only pins, verified available from PyPI.
+PyYAML==6.0.3
+packaging==26.0

@@ -1,0 +1,11 @@
+name: hackathon-judge
+version: 0.2.0
+description: Source-linked Hermes hackathon and catalog preflight with explicit human review gates
+requires_hermes: ">=0.22.5"
+author: Macu
+provides_tools:
+  - hackathon_judge
+provides_hooks: []
+python_dependencies:
+  - "PyYAML>=6.0,<7"
+  - "packaging>=24,<27"
