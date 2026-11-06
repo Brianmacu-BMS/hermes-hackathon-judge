@@ -21,8 +21,7 @@ jobs:
     env:
       HERMES_CORE_ROOT: ${{ github.workspace }}/hermes-core
       JUDGE_SOURCE: ${{ github.workspace }}/judge
-      HERMES_HOME: ${{ runner.temp }}/installed/data
-      HERMES_RUNTIME_DIR: ${{ runner.temp }}/installed/runtime
+
       PYTHONDONTWRITEBYTECODE: "1"
       UV_NO_CONFIG: "1"
     steps:
@@ -42,6 +41,8 @@ jobs:
       - name: Check separate-machine and state-root boundaries before setup
         shell: bash
         env:
+          HERMES_HOME: ${{ runner.temp }}/installed/data
+          HERMES_RUNTIME_DIR: ${{ runner.temp }}/installed/runtime
           HOME: ${{ runner.temp }}/installed/home
           TMPDIR: ${{ runner.temp }}/installed/tmp
         run: |
@@ -51,6 +52,8 @@ jobs:
       - name: Bootstrap pinned Hermes through its documented PM entry point
         shell: bash
         env:
+          HERMES_HOME: ${{ runner.temp }}/installed/data
+          HERMES_RUNTIME_DIR: ${{ runner.temp }}/installed/runtime
           HOME: ${{ runner.temp }}/installed/home
           TMPDIR: ${{ runner.temp }}/installed/tmp
         run: |
@@ -59,6 +62,8 @@ jobs:
       - name: Install exact trusted source pin only in this disposable runner
         shell: bash
         env:
+          HERMES_HOME: ${{ runner.temp }}/installed/data
+          HERMES_RUNTIME_DIR: ${{ runner.temp }}/installed/runtime
           HOME: ${{ runner.temp }}/installed/home
           TMPDIR: ${{ runner.temp }}/installed/tmp
         run: |
@@ -71,6 +76,8 @@ jobs:
       - name: Real discovery, registered interfaces, denial and trusted validation
         shell: bash
         env:
+          HERMES_HOME: ${{ runner.temp }}/installed/data
+          HERMES_RUNTIME_DIR: ${{ runner.temp }}/installed/runtime
           HOME: ${{ runner.temp }}/installed/home
           TMPDIR: ${{ runner.temp }}/installed/tmp
         run: |
