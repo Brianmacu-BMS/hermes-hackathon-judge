@@ -7,7 +7,7 @@ import sys
 import unittest
 
 
-SCRIPT = Path(__file__).resolve().parents[1] / 'scripts' / 'verify-installed-plugin.py'
+SCRIPT = Path(__file__).resolve().parent / 'native_installed_acceptance.py'
 
 
 class InstalledRunnerGuardTests(unittest.TestCase):

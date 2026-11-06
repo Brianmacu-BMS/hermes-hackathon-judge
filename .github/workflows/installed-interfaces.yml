@@ -48,7 +48,7 @@ jobs:
         run: |
           mkdir -p "$HOME" "$TMPDIR" "$HERMES_HOME" "$HERMES_RUNTIME_DIR"
           test "$(git -C "$HERMES_CORE_ROOT" rev-parse HEAD)" = "${{ matrix.commit }}"
-          python "$JUDGE_SOURCE/scripts/verify-installed-plugin.py" --guard-only
+          python "$JUDGE_SOURCE/tests/native_installed_acceptance.py" --guard-only
       - name: Bootstrap pinned Hermes through its documented PM entry point
         shell: bash
         env:
@@ -83,4 +83,4 @@ jobs:
         run: |
           cd "$HERMES_CORE_ROOT"
           # Use PM's selected application interpreter, not the separate test env.
-          scripts/run-in-hermes-env python -c 'import os; from pm.environments import project_python; from pathlib import Path; core=Path(os.environ["HERMES_CORE_ROOT"]); executable=str(project_python(core)); os.execv(executable, [executable, os.environ["JUDGE_SOURCE"] + "/scripts/verify-installed-plugin.py"])'
+          scripts/run-in-hermes-env python -c 'import os; from pm.environments import project_python; from pathlib import Path; core=Path(os.environ["HERMES_CORE_ROOT"]); executable=str(project_python(core)); os.execv(executable, [executable, os.environ["JUDGE_SOURCE"] + "/tests/native_installed_acceptance.py"])'
