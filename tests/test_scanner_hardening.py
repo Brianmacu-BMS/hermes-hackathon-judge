@@ -354,22 +354,30 @@ class CatalogMetadataHardeningTests(unittest.TestCase):
             'repo': 'https://github.com/o/r',
             'sha': '0123456789abcdef0123456789abcdef01234567',
             'version': '1.0.0',
-            'image': 'http://example.com/banner.png',
+            'requires_hermes': '>=0.22.5',
+            'image': 'http://raw.githubusercontent.com/o/r/s/banner.png',
         }
         checks = []
         def add(k, rules, status, detail):
             checks.append({'id': k, 'rules': rules, 'status': status, 'detail': detail})
         entry = self.root / 'entry.yaml'
         import yaml
-        entry.write_text(yaml.dump(entry_data))
+        entry.write_text(yaml.safe_dump(entry_data, default_style='"'))
         from hackathon_judge.checks import catalog_checks
         manifest = yaml.safe_load((self.root / 'plugin.yaml').read_text())
         catalog_checks(entry, manifest, add)
-        meta = next((c for c in checks if c['id'] == 'catalog-metadata'), None)
-        self.assertIsNotNone(meta)
+        meta = next(c for c in checks if c['id'] == 'catalog-metadata')
         # Should flag the http image URL
         issues_detail = meta['detail'].lower()
-        self.assertIn('image', issues_detail) if meta['status'] == 'fail' else None
+        self.assertEqual(meta['status'], 'fail')
+        self.assertIn('image', issues_detail)
+        self.assertNotIn('version', issues_detail)
+        # An otherwise identical HTTPS control must pass, not fail on quoting/floor.
+        entry_data['image'] = 'https://raw.githubusercontent.com/o/r/s/banner.png'
+        entry.write_text(yaml.safe_dump(entry_data, default_style='"'))
+        checks.clear()
+        catalog_checks(entry, manifest, add)
+        self.assertEqual(next(c for c in checks if c['id'] == 'catalog-metadata')['status'], 'pass')
 
     def test_malformed_entry_yaml_still_reports(self):
         """YAML syntax error in catalog entry should not crash."""

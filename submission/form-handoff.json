@@ -1,17 +1,17 @@
 {
   "schema_version": 1,
   "status": "local_handoff_not_submitted",
-  "notice": "Publication is approval-gated. Macu will post the demo and submit the form. MISSING means an actual external prerequisite, never a fabricated completed step.",
+  "notice": "The source repository exists; this hardened revision is local and unpublished. Commit/push/publication require approval. Macu will post the demo and submit the form. MISSING is an unfulfilled external prerequisite, never a completed claim.",
   "plugin": {
     "name": "hackathon-judge",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "requires_hermes": ">=0.22.5",
     "tier": "community",
     "category": "tools"
   },
   "repository": {
-    "url": "MISSING: public HTTPS repository after publication approval",
-    "sha": "MISSING: real full 40-hex public source commit",
+    "url": "https://github.com/Brianmacu-BMS/hermes-hackathon-judge",
+    "sha": "MISSING: final hardened full 40-hex public commit; earlier published source is not this revision",
     "subdir": ""
   },
   "catalog_pr": {
@@ -39,8 +39,8 @@
   "event_year": 2026,
   "deadline": "November 11, 2026 at 5PM EST (UTC-05:00). Year verified from official X oEmbed publication metadata for the exact announcement, saved in sources/announcement-oembed.json; not inferred from the clock.",
   "remaining_external_steps": [
-    "Approve exact public repository/source publication scope.",
-    "Create or choose public repository, commit/push approved source, verify anonymous clone and exact commit.",
+    "Review the hardened source diff and approve its commit/push/publication scope.",
+    "Publish the approved hardened source to the existing repository, verify anonymous clone and exact commit.",
     "Generate a real catalog YAML pin; validate the clean checkout at that pin and open the catalog PR.",
     "Macu reviews/posts the real under-90-second demo on X tagging @NousResearch.",
     "Macu submits the opened PR and demo links via the official form before November 11, 2026 at 5PM EST.",

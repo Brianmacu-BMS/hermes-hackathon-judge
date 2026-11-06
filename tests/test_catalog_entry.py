@@ -21,7 +21,7 @@ class CatalogEntryTests(unittest.TestCase):
         result = yaml.safe_load(text)
         self.assertEqual(result['repo'], repo)
         self.assertEqual(result['sha'], sha)
-        self.assertEqual(result['version'], '0.2.0')
+        self.assertEqual(result['version'], '0.2.1')
         self.assertEqual(result['tier'], 'community')
         self.assertEqual(result['capabilities']['provides_tools'], ['hackathon_judge'])
 

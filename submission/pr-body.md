@@ -1,6 +1,6 @@
 # Add Hackathon Judge to the plugin catalog
 
-**Local draft. Public repository and commit pin are TO BE SUPPLIED after Macu approves publication. MISSING fields below are real external prerequisites, not completed claims.**
+**Local draft for the hardened 0.2.1 revision. The source repository exists, but this revision has not been committed or published. The final commit pin, catalog PR, public demo and form evidence are TO BE SUPPLIED; placeholders are not completed claims.**
 
 ## Functionality
 
@@ -43,12 +43,12 @@ No custom UI screenshots are required for an absent custom UI. A terminal demons
 ## Catalog entry details
 
 - Name: `hackathon-judge`
-- Version: `"0.2.0"`
+- Version: `"0.2.1"`
 - `requires_hermes`: `">=0.22.5"` in both manifest and entry.
 - Tier: `community` (only Nous maintainers assign verified/official).
 - Category: `tools`.
-- Repository: **MISSING — TO BE SUPPLIED after publication approval**.
-- SHA: **MISSING — real full 40-hex public commit, not a branch/tag/archive digest**.
+- Repository: https://github.com/Brianmacu-BMS/hermes-hackathon-judge.
+- SHA: **MISSING — final hardened full 40-hex public commit; do not reuse the earlier 0.2.0 pin or substitute an archive digest**.
 - Subdir: omit for a standalone root repository.
 - Entry capabilities: tool `hackathon_judge`; no hooks, middleware or required credential environment variables.
 

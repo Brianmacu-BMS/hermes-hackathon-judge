@@ -13,7 +13,7 @@ The policy digest covers the compiled requirements, source index and every index
 - `reason`: a substantive explanation (at least 12 characters).
 - `evidence`: one or more objects with a relative `path` and exact lowercase `sha256` of that UTF-8 document. An optional `kind` identifies specialized receipts.
 
-Unknown IDs, duplicate JSON keys, non-finite JSON values, unsafe paths, symlinks, secret-store references, changed/missing/oversized evidence or future/naive review timestamps invalidate the record. Raw evidence contents are not echoed in errors. A reviewer cannot waive a local failed check, partial inventory, or unresolved source finding.
+Unknown IDs, duplicate JSON keys, non-finite JSON values, unsafe paths, symlinks, junctions/reparse points, secret-store references, changed/missing/oversized evidence or future/naive review timestamps invalidate the record. Lexical root/ancestor components are checked before resolution can hide an alias; even in-scope linked targets are refused. Raw evidence contents are not echoed in errors. A reviewer cannot waive a local failed check, partial inventory, or unresolved source finding.
 
 Non-applicability is permitted only for the initial-vs-update policy (`CAT-04`), no Desktop entrypoint (`CAT-08`) and no login backend (`CAT-18`). The latter two are cross-checked against inspected metadata/findings; do not mark all hackathon obligations N/A.
 
