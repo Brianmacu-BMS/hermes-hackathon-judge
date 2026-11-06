@@ -61,7 +61,7 @@ def _repo_attributes():
         ) from None
 
 
-def _git(repo, *args, timeout=60, binary=False):
+def _git(repo, *args, timeout=60, binary=False, input_bytes=None):
     """Run git in a fixture repo with host/global config fully isolated."""
     env = {key: value for key, value in os.environ.items() if not key.startswith('GIT_')}
     env['GIT_CONFIG_GLOBAL'] = os.devnull
@@ -70,7 +70,7 @@ def _git(repo, *args, timeout=60, binary=False):
     env['GIT_TERMINAL_PROMPT'] = '0'
     proc = subprocess.run(
         ['git', *args], cwd=str(repo), env=env,
-        capture_output=True, text=not binary, timeout=timeout,
+        capture_output=True, text=not binary, input=input_bytes, timeout=timeout,
     )
     if proc.returncode != 0:
         raise AssertionError(
@@ -81,6 +81,8 @@ def _git(repo, *args, timeout=60, binary=False):
 
 
 class CheckoutByteStabilityTests(unittest.TestCase):
+    maxDiff = None
+
     def setUp(self):
         if shutil.which('git') is None:
             self.skipTest('git binary not available')
@@ -103,24 +105,27 @@ class CheckoutByteStabilityTests(unittest.TestCase):
     def _stage_and_commitless_tree(self, has_attributes=True):
         """Fill the fixture index, verify stored blobs, return the tree id.
 
-        When *has_attributes* is False the vacuity-guard test skips the
-        .gitattributes blob assertion (no such file exists in that fixture).
+        Hash expected bytes through stdin, not filenames: Git's filename
+        hashing can apply path-dependent filters (notably Windows absolute
+        paths). The no-attributes control intentionally stores normalized LF.
         """
         expected = {}
-        for rel in FILES:
-            expected[rel] = _git(self.repo, 'hash-object', str(self.repo / rel)).strip()
+        for rel, raw in FILES.items():
+            canonical = raw if has_attributes else raw.replace(b'\r\n', b'\n')
+            expected[rel] = _git(self.repo, 'hash-object', '--stdin', binary=True,
+                                 input_bytes=canonical).decode('ascii').strip()
         if has_attributes:
             expected[Path('.gitattributes')] = _git(
-                self.repo, 'hash-object', str(self.repo / '.gitattributes')).strip()
+                self.repo, 'hash-object', '--stdin', binary=True,
+                input_bytes=_repo_attributes()).decode('ascii').strip()
         _git(self.repo, 'add', '-A')
         staged = {}
         for line in _git(self.repo, 'ls-files', '-s').splitlines():
             _, blob, _, path = line.split(None, 3)
             staged[Path(path)] = blob
         self.assertEqual(staged, expected,
-                         'staging under the shipped .gitattributes must store '
-                         'canonical blob bytes (no rehashing of sources/** or '
-                         'the policy JSON)')
+                         'staged blobs must match raw protected bytes, or '
+                         'expected LF normalization in the no-attributes control')
         tree = _git(self.repo, 'write-tree').strip()
         self.assertTrue(tree)
         return tree
@@ -144,6 +149,17 @@ class CheckoutByteStabilityTests(unittest.TestCase):
         self._stage_and_commitless_tree()
         self._materialize()
         self._assert_canonical(self.repo)
+
+    def test_protected_capture_blob_is_independent_of_other_filter_context(self):
+        self._write_fixture()
+        relative = Path('sources/raw-crlf.md')
+        source = str(self.repo / relative)
+        raw_id = _git(self.repo, 'hash-object', '--no-filters', source).strip()
+        filtered_id = _git(self.repo, 'hash-object', '--path=ordinary.txt', source).strip()
+        self.assertNotEqual(raw_id, filtered_id, 'Control must actually apply different EOL filters')
+        tree = self._stage_and_commitless_tree()
+        self.assertEqual(_git(self.repo, 'rev-parse', tree + ':' + relative.as_posix()).strip(), raw_id)
+        self.assertEqual(_git(self.repo, 'cat-file', 'blob', tree + ':' + relative.as_posix(), binary=True), FILES[relative])
 
     def test_git_archive_reproduces_canonical_bytes(self):
         self._write_fixture()
