@@ -182,7 +182,7 @@ def _load_gitignore(source_root: Path) -> list[str]:
 def _iter_included(source_root: Path) -> list[tuple[str, Path, bool]]:
     """Inventory before filtering: unknown paths must not hide unsafe inputs."""
     for component in (source_root, *source_root.parents):
-        if component.name in SENSITIVE_DIRS:
+        if component.name.casefold() in SENSITIVE_DIRS:
             raise RejectedFile('REJECTED: credential-store source path')
         _reject_secret(component.name, component.name)
     source_root = guarded_path(source_root)
@@ -201,7 +201,7 @@ def _iter_included(source_root: Path) -> list[tuple[str, Path, bool]]:
                 guarded_path(path, root=source_root)
             except (OSError, ValueError) as exc:
                 raise RejectedFile('REJECTED: unsafe source directory') from exc
-            if name in SENSITIVE_DIRS:
+            if name.casefold() in SENSITIVE_DIRS:
                 raise RejectedFile('REJECTED: credential-store directory')
             if name not in EXCLUDE_DIRS:
                 kept.append(name)
@@ -231,9 +231,10 @@ def _included(rel):
 
 def _reject_secret(rel: str, name: str) -> None:
     """Raise RejectedFile if *name* looks like a secret file."""
-    if name in SECRET_FILENAMES or name.startswith('.env.'):
+    comparison = name.casefold()
+    if comparison in SECRET_FILENAMES or comparison.startswith('.env.'):
         raise RejectedFile(f"REJECTED: {rel} matches secret filename {name!r}")
-    if any(name.endswith(suf) for suf in SECRET_SUFFIXES):
+    if any(comparison.endswith(suf) for suf in SECRET_SUFFIXES):
         raise RejectedFile(f"REJECTED: {rel} has secret suffix")
 
 
