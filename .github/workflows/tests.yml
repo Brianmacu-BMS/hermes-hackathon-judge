@@ -58,6 +58,14 @@ jobs:
           PYTHONDONTWRITEBYTECODE: "1"
           TMPDIR: ${{ runner.temp }}
         run: |
+          python -m unittest discover -s tests -p test_native_paths.py -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -O -m unittest discover -s tests -p test_native_paths.py -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m unittest discover -s tests -p test_sensitive_names.py -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -O -m unittest discover -s tests -p test_sensitive_names.py -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -m unittest discover -s tests -p test_path_boundaries.py -v
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -O -m unittest discover -s tests -p test_path_boundaries.py -v

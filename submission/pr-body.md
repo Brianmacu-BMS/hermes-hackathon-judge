@@ -1,6 +1,6 @@
 # Add Hackathon Judge to the plugin catalog
 
-**Local draft for the hardened 0.2.1 revision. The source repository exists, but this revision has not been committed or published. The final commit pin, catalog PR, public demo and form evidence are TO BE SUPPLIED; placeholders are not completed claims.**
+**Catalog entry/update template for version 0.2.2. This template is not publication or submission evidence. The exact qualified source pin, relevant catalog PR, public demo and form evidence are TO BE SUPPLIED in the operation handoff; placeholders are not completed claims. Existing catalog acceptance of an older pin does not qualify a new revision.**
 
 ## Functionality
 
@@ -43,7 +43,7 @@ No custom UI screenshots are required for an absent custom UI. A terminal demons
 ## Catalog entry details
 
 - Name: `hackathon-judge`
-- Version: `"0.2.1"`
+- Version: `"0.2.2"`
 - `requires_hermes`: `">=0.22.5"` in both manifest and entry.
 - Tier: `community` (only Nous maintainers assign verified/official).
 - Category: `tools`.

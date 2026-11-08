@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "status": "local_handoff_not_submitted",
-  "notice": "The source repository exists; this hardened revision is local and unpublished. Commit/push/publication require approval. Macu will post the demo and submit the form. MISSING is an unfulfilled external prerequisite, never a completed claim.",
+  "notice": "Submission worksheet template, not a live publication-status record. Bind actual qualified source, catalog, demo and form evidence in the operation handoff. Existing acceptance of an older pin does not qualify this revision. Macu owns the demo and form submission. MISSING is an unfulfilled evidence field, never a completed claim.",
   "plugin": {
     "name": "hackathon-judge",
-    "version": "0.2.1",
+    "version": "0.2.2",
     "requires_hermes": ">=0.22.5",
     "tier": "community",
     "category": "tools"

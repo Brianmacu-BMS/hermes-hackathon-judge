@@ -11,12 +11,13 @@ SOURCE_SUFFIXES = {'.py', '.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx'}
 
 
 def sensitive(name):
+    name = name.casefold()
     return name == '.env' or name.startswith('.env.') or name in SENSITIVE or name.endswith(('.pem', '.key', '.p12', '.pfx', '.kdbx'))
 
 
 def inventory(root, *, max_files=10000, max_directories=10000, max_file_bytes=2_000_000, max_total_bytes=32_000_000):
     root = Path(root).expanduser().absolute()
-    if any(p.name in SENSITIVE_DIRS or sensitive(p.name) for p in (root, *root.parents)):
+    if any(p.name.casefold() in SENSITIVE_DIRS or sensitive(p.name) for p in (root, *root.parents)):
         raise ValueError('Secret-store candidate paths are refused')
     root = guarded_path(root)
     if not root.is_dir():
@@ -42,7 +43,7 @@ def inventory(root, *, max_files=10000, max_directories=10000, max_file_bytes=2_
         for name in dirs:
             p = Path(directory) / name
             rel = p.relative_to(root).as_posix()
-            if name in SENSITIVE_DIRS or sensitive(name):
+            if name.casefold() in SENSITIVE_DIRS or sensitive(name):
                 result['excluded_sensitive'].append(rel + '/')
                 result['complete'] = False
             else:
@@ -100,7 +101,7 @@ def fingerprint(files):
 def read_document(path, root=None):
     """Read an explicitly supplied non-secret regular document, bounded to 1 MiB."""
     p = Path(path).expanduser().absolute()
-    if any(x.name in SENSITIVE_DIRS or sensitive(x.name) for x in (p, *p.parents)):
+    if any(x.name.casefold() in SENSITIVE_DIRS or sensitive(x.name) for x in (p, *p.parents)):
         raise ValueError('Secret document paths are refused')
     raw = read_regular(p, root=root, max_bytes=1_000_000)
     return raw.decode('utf-8')
