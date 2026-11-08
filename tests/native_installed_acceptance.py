@@ -108,6 +108,66 @@ def probe(core, source, mode, candidate):
             'terminal_dispatches': observed, 'candidate_executed': marker.exists()}
 
 
+def session_paths(home, dispatch):
+    """Use real host context with a process cwd outside both calling sessions."""
+    from agent.runtime_cwd import set_session_cwd, reset_session_cwd, resolve_agent_cwd
+    from hermes_cli.plugins import get_plugin_command_handler
+    process = Path.cwd()
+    session = home / 'session workspace'
+    candidate = session / 'fixture'
+    candidate.mkdir(parents=True)
+    (candidate / 'plugin.yaml').write_text('name: session-fixture\nversion: 1.0.0\ndescription: Owned CI fixture\n')
+    (candidate / '__init__.py').write_text('def register(ctx):\n    raise AssertionError("Static candidate executed")\n')
+    (session / 'entry.yaml').write_text('name: session-fixture\nrepo: https://github.com/example/fixture\nsha: "' + 'a' * 40 + '"\nversion: "1.0.0"\n')
+    (session / 'submission.json').write_text(json.dumps({'submitted_at': 'owned-session-marker'}))
+    records = session / 'records'
+    records.mkdir()
+    note = records / 'note.md'
+    note.write_text('Owned session-path evidence.')
+    document = dispatch({'action': 'template', 'path': str(candidate)})
+    document.update(reviewer={'name': 'CI Fixture', 'role': 'operator'}, reviewed_at='2026-01-01T00:00:00+00:00')
+    document['decisions']['CAT-03'].update(decision='pass', reason='Owned session-path fixture only.',
+        evidence=[{'path': note.name, 'sha256': hashlib.sha256(note.read_bytes()).hexdigest()}])
+    (records / 'review.json').write_text(json.dumps(document))
+    slash = get_plugin_command_handler('judge-plugin')
+    if not callable(slash):
+        raise RuntimeError('Session path probe requires the real discovered slash handler')
+    token = set_session_cwd(str(session))
+    try:
+        require(resolve_agent_cwd() == session and process != session, 'Real differing session cwd not bound')
+        args = {'path': 'fixture', 'catalog': 'entry.yaml', 'submission': 'submission.json', 'review': 'records/review.json'}
+        reports = [dispatch(args), json.loads(slash('fixture --catalog entry.yaml --submission submission.json --review records/review.json --format json'))]
+        for report in reports:
+            require(report.get('candidate') == str(candidate), 'Native relative path selected process cwd')
+            require(report['submission_attestations'].get('submitted_at') == 'owned-session-marker', 'Native submission path not session-bound')
+            require(report['assessment']['status'] == 'incomplete' and len(report['assessment']['evidence_checked']) == 1,
+                    'Native review/evidence paths did not bind to the intended records')
+            metadata = next(c for c in report['checks'] if c['id'] == 'catalog-metadata')
+            require(metadata['status'] == 'pass', 'Native catalog path not session-bound')
+        alias = session / 'alias'
+        alias.symlink_to(candidate, target_is_directory=True)
+        require('error' in dispatch({'path': 'alias/../fixture'}), 'Native tool erased lexical alias')
+        require('Unable to audit' in slash('alias/../fixture'), 'Native slash erased lexical alias')
+    finally:
+        reset_session_cwd(token)
+    second = home / 'second session'
+    other = second / 'fixture'
+    other.mkdir(parents=True)
+    (other / 'plugin.yaml').write_text('name: other-fixture\nversion: 1.0.0\ndescription: Owned CI fixture\n')
+    (other / '__init__.py').write_text('def register(ctx):\n    raise AssertionError("Static candidate executed")\n')
+    token = set_session_cwd(str(second))
+    try:
+        require(dispatch({'path': 'fixture'}).get('candidate') == str(other), 'Tool cached another session cwd')
+        require(json.loads(slash('fixture --format json')).get('candidate') == str(other), 'Slash cached another session cwd')
+    finally:
+        reset_session_cwd(token)
+    require(Path.cwd() == process, 'Native handlers changed process cwd')
+    return {'ok': True, 'process_cwd': str(process), 'session_cwd': str(session),
+            'candidate': str(candidate), 'second_session_candidate': str(other),
+            'tool_and_slash_documents_verified': True, 'lexical_alias_refused': True,
+            'process_cwd_unchanged': True, 'context_switch_verified': True}
+
+
 def main(core, source):
     home = Path(os.environ['HERMES_HOME'])
     bindir = home / 'acceptance-bin'
@@ -156,10 +216,12 @@ def main(core, source):
             'Discovered slash audit executed candidate code')
     require('Unable to audit' in slash('"unterminated'), 'Malformed slash arguments escaped')
     require('Unable to audit' in slash(shlex.quote(str(alias))), 'Slash erased a candidate alias')
+    path_receipt = session_paths(home, dispatch)
+    require(not marker.exists(), 'Session-relative audit unexpectedly executed candidate code')
     runs = []
 
-    def run(label, args, expected=0):
-        done = subprocess.run(args, cwd=core, text=True, capture_output=True, timeout=300)
+    def run(label, args, expected=0, cwd=core):
+        done = subprocess.run(args, cwd=cwd, text=True, capture_output=True, timeout=300)
         runs.append({'label': label, 'args': args, 'exit_code': done.returncode,
                      'stdout': done.stdout, 'stderr': done.stderr})
         require(done.returncode == expected, label + ' failed: ' + done.stderr[-2000:])
@@ -177,6 +239,9 @@ def main(core, source):
     require(cli_report.get('certified') is False and not marker.exists(),
             'Native CLI executed the candidate or invented readiness')
     run('cli-alias-refusal', cli + ['hackathon-judge', str(alias)], 3)
+    relative_cli = json.loads(run('cli-relative-path', cli + ['hackathon-judge', 'fixture', '--format', 'json'],
+                                  2, cwd=Path(path_receipt['session_cwd'])))
+    require(relative_cli.get('candidate') == path_receipt['candidate'], 'Native terminal CLI lost process cwd semantics')
     run('policy-deny', cli + ['config', 'set', 'approvals.deny', '["hermes plugins validate *"]'])
     denied = run('native-denial', [sys.executable, __file__, '--probe', 'denied', str(candidate)])
     run('policy-remove-test-deny', cli + ['config', 'set', 'approvals.deny', '[]'])
@@ -207,6 +272,7 @@ def main(core, source):
         'runner': os.environ['RUNNER_ENVIRONMENT'], 'home': str(home),
         'python': sys.executable, 'selected_venv': str(selected), 'installed': str(installed),
         'installed_files': hashes, 'discovered': discovered, 'runs': runs, 'probes': probes,
+        'session_paths': path_receipt,
         'source_qualification': qualification, 'source_qualification_install_deps': True,
         'static_candidate_nonexecution': True, 'activation': 'disposable GitHub runner only',
         'approval_scope': 'real approvals.deny policy refusal, not interactive UI acceptance',

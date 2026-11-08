@@ -1,6 +1,6 @@
 # Hermes Hackathon Judge
 
-**Version 0.2.1 — source-grounded plugin preflight and evidence-backed review.**
+**Version 0.2.2 — source-grounded plugin preflight and evidence-backed review.**
 
 Hackathon Judge helps plugin authors find submission problems before reviewers do. It inspects source without importing candidate code, runs through the complete captured policy checklist, and can complete an **accountable reviewer assessment** when every required decision has source-bound evidence. It is not an official Nous judge, a security sandbox, or a substitute for watching the demo.
 
@@ -39,6 +39,8 @@ Output formats: Markdown, JSON or review template. Exit **0** means the explicit
 - `hermes hackathon-judge /path/to/candidate` with the same CLI flags.
 - Skill `hackathon-judge:judge-plugin`.
 
+Native tool and slash-command candidate, `--catalog`, `--submission` and `--review` paths use the calling session's working directory through the documented `agent.runtime_cwd.resolve_agent_cwd()` helper. Absolute paths stay absolute. Relative native inputs fail cleanly if the host helper is unavailable; they never silently fall back to a guessed server directory. The standalone `python -m hackathon_judge` and terminal `hermes hackathon-judge` CLI retain ordinary process-working-directory semantics. Evidence paths inside a review record remain relative to that record's directory. No command changes the gateway's process cwd or resolves away lexical links before the existing guards inspect them.
+
 There is no custom Desktop renderer/DOM integration. Native conversation/command surfaces work without a Desktop SDK workaround. Development qualification does **not** imply installation or activation; this candidate is held inactive in its development environment.
 
 ## Evidence-backed review
@@ -73,7 +75,7 @@ Both execute trusted plugin code. Doctor's temporary profile is not a sandbox. `
 | Writes | Runtime results return to the caller; stdout redirection is the operator's action. No candidate, Hermes config, authentication or memory writes. |
 | Commands | Optional trusted validation uses host terminal dispatch. Standalone development/demo/release scripts can run tests and validator commands only when explicitly invoked; they are not imported by plugin registration. |
 | Background activity | None: no scheduled jobs, persistent processes, update loop or watchers. |
-| Credentials | No credentials requested, read, stored or refreshed. Recognized secret files/stores are refused or skipped without content reads/hashes. Secret values hidden under ordinary source names cannot be reliably detected; do not audit secret-bearing repositories. |
+| Credentials | No credentials requested, read, stored or refreshed. Recognized secret files/stores are refused or skipped without content reads/hashes; those name comparisons are case-insensitive, while actual paths and bytes remain unchanged. Secret values hidden under ordinary source names cannot be reliably detected; do not audit secret-bearing repositories. |
 | Telemetry and model usage | None. No analytics, hidden LLM calls, provider selection or model routing changes. Human/agent qualitative review happens outside the plugin's deterministic runtime. |
 | Dependencies | Bounded PyYAML and packaging requirements. CI-only versions are pinned separately. No dependency-age guarantee is inherited from Hermes; see [dependency policy](docs/dependency-policy.md). |
 

@@ -25,6 +25,26 @@ SCHEMA = {
 }
 
 
+def _native_paths(args):
+    """Bind native inputs once to this session without erasing lexical aliases."""
+    if not isinstance(args.get('path'), str) or not args['path'].strip():
+        raise ValueError('Explicit candidate path required')
+    paths = {name: Path(args[name]).expanduser() if args.get(name) is not None else None
+             for name in ('path', 'catalog', 'submission', 'review')}
+    if any(path is not None and not path.is_absolute() for path in paths.values()):
+        # This documented host seam is invocation-scoped. Keep the standalone
+        # CLI independent of Hermes, and fail closed if native context is absent.
+        from agent.runtime_cwd import resolve_agent_cwd
+        cwd = Path(resolve_agent_cwd()).expanduser()
+        if not cwd.is_absolute():
+            raise ValueError('Session working directory must be absolute')
+        paths = {name: cwd / path if path is not None and not path.is_absolute() else path
+                 for name, path in paths.items()}
+    # Do not resolve() or chdir(): the existing guards must still see every
+    # link/reparse component, and other sessions share this process.
+    return {name: str(path) if path is not None else None for name, path in paths.items()}
+
+
 def handle(ctx, args, **kwargs):
     try:
         action = args.get('action', 'audit')
@@ -32,13 +52,12 @@ def handle(ctx, args, **kwargs):
             return json.dumps({'requirements': requirements()})
         if action not in {'audit', 'template', 'validate'}:
             raise ValueError('Unknown action')
-        if not isinstance(args.get('path'), str) or not args['path'].strip():
-            raise ValueError('Explicit candidate path required')
-        report = audit(args['path'], catalog=args.get('catalog'), submission=args.get('submission'), review=args.get('review'))
+        paths = _native_paths(args)
+        report = audit(**paths)
         if action == 'validate':
             if args.get('trusted_code') is not True:
                 return json.dumps({'error': 'validate imports and executes candidate code. Obtain user authorization for this exact candidate and set trusted_code; Hermes terminal approvals still apply.'})
-            report = validate_through_host(ctx, report, catalog=args.get('catalog'), submission=args.get('submission'), review=args.get('review'))
+            report = validate_through_host(ctx, report, catalog=paths['catalog'], submission=paths['submission'], review=paths['review'])
         return json.dumps(review_template(report) if action == 'template' else report)
     except Exception as exc:
         return json.dumps({'error': 'Audit failed; verify candidate path and document format', 'kind': type(exc).__name__})
@@ -60,7 +79,7 @@ def slash(raw):
             raise ValueError('Unexpected arguments')
         if args.rules:
             return json.dumps(requirements())
-        report = audit(args.path, catalog=args.catalog, submission=args.submission, review=args.review)
+        report = audit(**_native_paths(vars(args)))
         return json.dumps(report) if args.format == 'json' else (json.dumps(review_template(report)) if args.format == 'template' else markdown(report))
     except (Exception, SystemExit):
         return 'Unable to audit: check path and arguments. Usage: /judge-plugin <local-path> [--catalog FILE] [--submission FILE]'
