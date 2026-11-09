@@ -26,8 +26,8 @@ Set `TMPDIR` to an approved scratch directory. The recorder creates a fresh disp
 
 1. **Intro**: Hackathon Judge reviews source and evidence; it is not official Nous certification.
 2. **Find an actual error**: fixture declares tool `demo`, but code registers `surprise`; dependency has only a floor. CLI exit **1**, verdict `blocked`, exact mismatch and dependency-review output.
-3. **Fix and rerun**: the script actually edits those fixture declarations and bounds the dependency. CLI exit **2**, verdict `needs_review`; the local fixes do not invent test, external demo or catalog evidence.
-4. **Evidence gate**: generate the actual 33-row review template, bound to the actual fixture SHA-256. Explain that stale evidence, partial scans, unresolved findings and invalid validator receipts prevent readiness.
+3. **Fix each source family**: the script repairs catalog declarations/dependency bounds first; exit stays **1** because the guide still finds an invalid schema/noncallable handler. It then supplies a descriptive object schema and JSON-string handler; exit **2**, verdict `needs_review`. Show both tracks. These local fixes do not invent runtime, external demo or catalog evidence.
+4. **Evidence gate**: generate the actual 45-row dual-source review template, bound to the actual fixture SHA-256. Explain that stale evidence, partial scans, unresolved findings and invalid validator receipts prevent readiness.
 5. **Outro**: native tool/slash/CLI/skill surfaces; review records remain accountable reviewer assessments, not official certification. Add public repository/PR links to the post only after they exist.
 
 Do not show credentials, host-specific paths or fake acceptance. If a rendered terminal clip is prepared from the recorded commands, label it **recorded CLI results, paced for readability**; do not represent a slide as a live Desktop interaction. Full underlying receipts must remain available locally.

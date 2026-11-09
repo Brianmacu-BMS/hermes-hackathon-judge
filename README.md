@@ -1,6 +1,6 @@
 # Hermes Hackathon Judge
 
-**Version 0.2.2 — source-grounded plugin preflight and evidence-backed review.**
+**Version 0.3.0 — two-source plugin conformance and submission review.**
 
 Hackathon Judge helps plugin authors find submission problems before reviewers do. It inspects source without importing candidate code, runs through the complete captured policy checklist, and can complete an **accountable reviewer assessment** when every required decision has source-bound evidence. It is not an official Nous judge, a security sandbox, or a substitute for watching the demo.
 
@@ -13,7 +13,22 @@ Hackathon Judge helps plugin authors find submission problems before reviewers d
 - Four distinct readiness gates: code, submission preparation, submitted entry, catalog admission. An unmerged PR does not block submitting the hackathon form.
 - Review completion that fails closed on changed evidence, unresolved findings, invalid receipts or local failures. No green checkbox can waive a failed check.
 
-The captured checklist contains **33 requirement rows**: 18 catalog rules, five prerequisites, five hackathon requirements and five qualitative criteria. No numerical judging weights or winning score are invented.
+The captured checklist contains **45 requirement rows**: 12 developer-guide obligations, 18 catalog rules, five prerequisites, five hackathon requirements and five qualitative criteria. No numerical judging weights or winning score are invented.
+
+## Two sources, two visible review tracks
+
+Every audit checks both:
+
+1. **Build-guide conformance** — the official [Build a Hermes Plugin](https://hermes-agent.nousresearch.com/docs/developer-guide/plugins) structure and contracts. `DEV-01` through `DEV-12` cover layout, callable registration, descriptive schemas, JSON-string handler results/errors, declarations, public APIs, profile-owned settings/state, bundled assets/skills, dependencies/secrets, optional hooks, session paths and real testing evidence.
+2. **Competition and catalog readiness** — the announcement's entry/demo/form/deadline/qualitative criteria plus the canonical catalog admission/submission requirements. These remain separate from the question of whether the plugin is implemented correctly.
+
+JSON exposes `tracks` and `guide_analysis`; Markdown separates the two checklists and shows component files plus file/line diagnostics and next actions. Guide rules include the source URL/anchor, actual quotation and capture line references. Capture hashes and quote bindings are checked locally. A clean source shape is not an evidence-backed completed review.
+
+**Check the roles, not the calculator's filenames.** Manifest, registration, schemas and handlers must be wired appropriately, but they can use inline definitions, package re-exports or different module names. Hooks, skills, data files and persistent state are optional. Specialized/Desktop/dashboard/portable surfaces need their applicable documented contracts; the generic Python analyzer does not pretend to prove every SDK. Dynamic factories, decorated handlers and shadowed bindings remain review items instead of guessed passes or false failures.
+
+Guide decisions are part of `code_ready`; approving only competition rows cannot skip them. Existing pre-0.3 reviews bind the old policy bytes and must be regenerated. `not_applicable` is evidence-backed and allowed for conditional guide roles, never to waive a detected failure. `certified` remains false.
+
+Runtime audits remain offline: they read complete **pinned captures**, not live websites and not a self-updating rule engine. This release's build/submission captures come from immutable upstream `8719a66ef8e7e2a1bd705d595767874c66fd8a48`; the source manifest records provenance. Recheck official sources before submitting.
 
 ## Run without installing or activating
 

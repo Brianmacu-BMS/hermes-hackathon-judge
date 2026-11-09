@@ -150,7 +150,7 @@ class NativePathTests(unittest.TestCase):
     def test_rules_help_and_blank_path_do_not_need_session_context(self):
         with patch.dict(sys.modules, {'agent.runtime_cwd': None}):
             self.assertIn('requirements', json.loads(plugin.handle(self.host, {'action': 'rules'})))
-            self.assertEqual(len(json.loads(plugin.slash('--rules'))), 33)
+            self.assertEqual(len(json.loads(plugin.slash('--rules'))), 45)
             self.assertIn('Usage:', plugin.slash(''))
             self.assertIn('Unable to audit', plugin.slash("''"))
             self.assertIn('error', json.loads(plugin.handle(self.host, {'path': ''})))

@@ -124,7 +124,7 @@ class PluginTests(unittest.TestCase):
         self.assertIn('needs_review', plugin.slash(str(self.root)))
 
     def test_rules_and_review_worksheet(self):
-        self.assertEqual(len(self.call(action='rules')['requirements']), 33)
+        self.assertEqual(len(self.call(action='rules')['requirements']), 45)
         self.assertIn('CAT-18', self.call(action='template')['reviews'])
 
 

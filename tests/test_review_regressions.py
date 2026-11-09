@@ -43,7 +43,7 @@ class ReviewTests(unittest.TestCase):
         self.assertEqual(quality['review_mode'], 'manual_only')
 
     def test_requirement_groups_have_expected_coverage(self):
-        self.assertEqual(dict(Counter(r['id'].split('-')[0] for r in requirements())), {'CAT': 18, 'PRE': 5, 'HACK': 5, 'QUALITY': 5})
+        self.assertEqual(dict(Counter(r['id'].split('-')[0] for r in requirements())), {'DEV': 12, 'CAT': 18, 'PRE': 5, 'HACK': 5, 'QUALITY': 5})
 
     def test_readme_without_disclosure_section_is_identified(self):
         (self.root / 'README.md').write_text('# Plugin\nA tool that does things.')
