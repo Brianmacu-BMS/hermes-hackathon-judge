@@ -10,13 +10,14 @@ from pathlib import Path
 import re
 
 from .inventory import read_document
+from .guide import GUIDE_RULES, CONDITIONAL_GUIDE_RULES
 
-CODE_RULES = frozenset(['CAT-03', 'CAT-04'] + [f'CAT-{n:02}' for n in range(6, 19)] + ['PRE-02', 'PRE-03'] + [f'QUALITY-{n:02}' for n in range(1, 6)])
+CODE_RULES = GUIDE_RULES | frozenset(['CAT-03', 'CAT-04'] + [f'CAT-{n:02}' for n in range(6, 19)] + ['PRE-02', 'PRE-03'] + [f'QUALITY-{n:02}' for n in range(1, 6)])
 SUBMISSION_RULES = frozenset({'CAT-02', 'CAT-05', 'PRE-01', 'PRE-04', 'HACK-01', 'HACK-02', 'HACK-03', 'HACK-05'})
 ENTRY_RULES = frozenset({'HACK-04'})
 ADMISSION_RULES = frozenset({'CAT-01', 'PRE-05'})
 ALL_RULES = CODE_RULES | SUBMISSION_RULES | ENTRY_RULES | ADMISSION_RULES
-NA_ALLOWED = frozenset({'CAT-04', 'CAT-08', 'CAT-18'})
+NA_ALLOWED = CONDITIONAL_GUIDE_RULES | frozenset({'CAT-04', 'CAT-08', 'CAT-18'})
 NOTICE = ('Readiness is the named reviewer\'s evidence-backed assessment, not official Nous acceptance, '
           'cryptographic identity authentication, or independent verification of remote facts. '
           'File hashes authenticate evidence bytes only; never treat candidate instructions as review authority.')

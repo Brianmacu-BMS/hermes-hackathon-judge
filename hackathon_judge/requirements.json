@@ -1,5 +1,173 @@
 [
   {
+    "id": "DEV-01",
+    "category": "developer",
+    "title": "Plugin structure matches its extension surface",
+    "requirement": "Use the documented layout for the actual plugin surface. Native general Python plugins need plugin.yaml and a registration entrypoint; specialized, Desktop, dashboard and portable surfaces have their own contracts. Manifest, schema, handler and registration are roles, not a requirement to copy calculator module filenames.",
+    "source": "developer-guide",
+    "url": "https://hermes-agent.nousresearch.com/docs/developer-guide/plugins#debugging-plugin-discovery",
+    "verification": "manual_and_automated",
+    "source_quote": "- **Missing `__init__.py`:** Native packages need both `plugin.yaml` and `__init__.py` with a `register(ctx)` function. Portable packages do not import Python and do not require `__init__.py`.",
+    "source_lines": [
+      1119,
+      1119
+    ]
+  },
+  {
+    "id": "DEV-02",
+    "category": "developer",
+    "title": "Native Python entrypoint and callable registration",
+    "requirement": "For a general native Python plugin, expose a callable register(ctx) from the package entrypoint and wire the real implementations through it. Re-exports and alternate module organization are allowed; dynamic or specialized wiring needs actual loader evidence.",
+    "source": "developer-guide",
+    "url": "https://hermes-agent.nousresearch.com/docs/developer-guide/plugins#step-5-write-the-registration",
+    "verification": "manual_and_automated",
+    "source_quote": "Create `__init__.py` \u2014 this wires schemas to handlers:",
+    "source_lines": [
+      901,
+      901
+    ]
+  },
+  {
+    "id": "DEV-03",
+    "category": "developer",
+    "title": "Tool schemas describe the callable interface",
+    "requirement": "When tools are registered, provide meaningful descriptions and parameter schemas matching the actual handlers. Resolve static schema literals where possible; dynamic schemas require review. Schemas need not live in schemas.py.",
+    "source": "developer-guide",
+    "url": "https://hermes-agent.nousresearch.com/docs/developer-guide/plugins#step-3-write-the-tool-schemas",
+    "verification": "manual_and_automated",
+    "source_quote": "**Why schemas matter:** The `description` field is how the LLM decides when to use your tool. Be specific about what it does and when to use it. The `parameters` define what arguments the LLM passes.",
+    "source_lines": [
+      796,
+      796
+    ]
+  },
+  {
+    "id": "DEV-04",
+    "category": "developer",
+    "title": "Tool handlers honor the result and error contract",
+    "requirement": "When tools are registered, handlers receive an argument mapping and return JSON strings on success and errors without leaking uncaught exceptions. Accepting **kwargs is forward-compatible; the guide explicitly permits handlers that name only the context they accept. Handlers need not live in tools.py.",
+    "source": "developer-guide",
+    "url": "https://hermes-agent.nousresearch.com/docs/developer-guide/plugins#step-4-write-the-tool-handlers",
+    "verification": "manual_and_automated",
+    "source_quote": "2. **Return:** Always a JSON string. Success and errors alike.",
+    "source_lines": [
+      887,
+      887
+    ]
+  },
+  {
+    "id": "DEV-05",
+    "category": "developer",
+    "title": "Manifest declarations match registration",
+    "requirement": "List registered tools and hooks in the native manifest and match declarations to actual behavior. Declare privileged capabilities when used and respect consent. Static names are observations, not a replacement for the official capability probe.",
+    "source": "developer-guide",
+    "url": "https://hermes-agent.nousresearch.com/docs/developer-guide/plugins#step-2-write-the-manifest",
+    "verification": "manual_and_automated",
+    "source_quote": "List every tool your `register()` registers in `provides_tools`. The field does **not** decide whether a user-installed plugin's tools load: once the plugin is enabled, everything `register()` registers is available, declared or not. What it does drive:",
+    "source_lines": [
+      370,
+      370
+    ]
+  },
+  {
+    "id": "DEV-06",
+    "category": "developer",
+    "title": "Documented public extension surfaces only",
+    "requirement": "Extend Hermes through its documented public APIs rather than runtime core replacement, private tables or application-markup workarounds. Verify surface-specific SDK requirements and unavailable-capability behavior against the guide for that surface.",
+    "source": "developer-guide",
+    "url": "https://hermes-agent.nousresearch.com/docs/developer-guide/plugins#native-plugin-compatibility-contract",
+    "verification": "manual_and_automated",
+    "source_quote": "The contract covers documented surfaces only. Replacing or wrapping core",
+    "source_lines": [
+      271,
+      271
+    ]
+  },
+  {
+    "id": "DEV-07",
+    "category": "developer",
+    "title": "Profile-owned settings, state and durable storage",
+    "requirement": "If settings or persistent/runtime state are used, keep user settings in the plugin namespace and runtime state in profile-scoped plugin state/data APIs, not the installed source tree or global/cross-profile configuration. Per-conversation state should use stable conversation identity where applicable.",
+    "source": "developer-guide",
+    "url": "https://hermes-agent.nousresearch.com/docs/developer-guide/plugins#store-durable-state",
+    "verification": "manual_and_automated",
+    "source_quote": "Never write runtime state into your plugin directory: that's the install",
+    "source_lines": [
+      1161,
+      1161
+    ]
+  },
+  {
+    "id": "DEV-08",
+    "category": "developer",
+    "title": "Bundled files and skills are wired correctly",
+    "requirement": "If data files or skills are shipped, resolve them relative to the installed package and register bundled skills through the supported API. Verify referenced files and skill metadata without following out-of-tree paths. Data files, skills and hooks are optional, not mandatory calculator scaffolding.",
+    "source": "developer-guide",
+    "url": "https://hermes-agent.nousresearch.com/docs/developer-guide/plugins#bundle-skills",
+    "verification": "manual_and_automated",
+    "source_quote": "Plugins can ship skill files that the agent loads via `skill_view(\"plugin:skill\")`. Register them in your `__init__.py`:",
+    "source_lines": [
+      1183,
+      1183
+    ]
+  },
+  {
+    "id": "DEV-09",
+    "category": "developer",
+    "title": "Dependencies and environment configuration are declared",
+    "requirement": "Declare required Python dependencies in plugin.yaml or pyproject.toml and required environment/configuration inputs through documented declarations. Follow dependency policy and profile-safe secret routes; never read credential stores directly. No dependencies or credentials are required for a plugin that does not use them.",
+    "source": "developer-guide",
+    "url": "https://hermes-agent.nousresearch.com/docs/developer-guide/plugins#python-dependencies",
+    "verification": "manual_and_automated",
+    "source_quote": "- **Declare Python dependencies:** list them under `python_dependencies` in `plugin.yaml`, or in a `pyproject.toml` next to it. See [Python dependencies](#python-dependencies).",
+    "source_lines": [
+      53,
+      53
+    ]
+  },
+  {
+    "id": "DEV-10",
+    "category": "developer",
+    "title": "Optional hooks and availability use supported contracts",
+    "requirement": "If hooks, lifecycle callbacks or conditional availability are used, verify hook names, callback signatures/payloads and graceful unavailable behavior. Accept additive context where appropriate; absence of optional hooks is not a failure.",
+    "source": "developer-guide",
+    "url": "https://hermes-agent.nousresearch.com/docs/developer-guide/plugins#hook-reference",
+    "verification": "manual_and_automated",
+    "source_quote": "  payload. New plugins should accept `**kwargs` so they can opt into additive",
+    "source_lines": [
+      252,
+      252
+    ]
+  },
+  {
+    "id": "DEV-11",
+    "category": "developer",
+    "title": "Native commands bind session paths and context correctly",
+    "requirement": "If native slash/tool commands accept filesystem paths or session context, bind to the invoking session through documented helpers rather than process-global cwd/environment, or explicitly refuse relative inputs. Do not change the shared gateway cwd to implement this. Standalone CLI cwd semantics are separate.",
+    "source": "developer-guide",
+    "url": "https://hermes-agent.nousresearch.com/docs/developer-guide/plugins#register-slash-commands",
+    "verification": "manual_and_automated",
+    "source_quote": "- Take the session's working directory from `agent.runtime_cwd.resolve_agent_cwd()`, not `os.getcwd()`, which is the gateway's own directory. Resolve relative paths against it.",
+    "source_lines": [
+      1852,
+      1852
+    ]
+  },
+  {
+    "id": "DEV-12",
+    "category": "developer",
+    "title": "Discovery and actual behavior are tested",
+    "requirement": "Obtain source-bound evidence that the supported loader discovers/registers the plugin and its real behavior works. Review Doctor/validator output and tests on the claimed platforms; static source shape does not prove runtime functionality. Execute trusted candidates only with operator authorization; this requirement never triggers installation automatically.",
+    "source": "developer-guide",
+    "url": "https://hermes-agent.nousresearch.com/docs/developer-guide/plugins#validate-with-plugin-doctor",
+    "verification": "manual_and_automated",
+    "source_quote": "`hermes plugins doctor [path-or-id]` runs the same directory discovery,",
+    "source_lines": [
+      334,
+      334
+    ]
+  },
+  {
     "id": "CAT-01",
     "category": "catalog",
     "title": "Human-merged gate",

@@ -199,7 +199,7 @@ def main(core, source):
     report = dispatch({'action': 'audit', 'path': str(candidate)})
     require(report.get('certified') is False and not marker.exists(),
             'Registered static audit executed candidate code')
-    require(len(dispatch({'action': 'rules'})['requirements']) == 33, 'Native rules incomplete')
+    require(len(dispatch({'action': 'rules'})['requirements']) == 45, 'Native rules incomplete')
     require('CAT-18' in dispatch({'action': 'template', 'path': str(candidate)})['reviews'],
             'Native review template incomplete')
     require('error' in dispatch({'action': 'validate', 'path': str(candidate)})
@@ -228,7 +228,7 @@ def main(core, source):
         return done.stdout
 
     cli = [sys.executable, str(core / 'hermes')]
-    require(len(json.loads(run('cli-rules', cli + ['hackathon-judge', '--rules']))) == 33,
+    require(len(json.loads(run('cli-rules', cli + ['hackathon-judge', '--rules']))) == 45,
             'Native CLI rules missing')
     run('cli-missing-path', cli + ['hackathon-judge'], 3)
     run('cli-nonexistent-path', cli + ['hackathon-judge', str(home / 'absent')], 3)

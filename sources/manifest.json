@@ -10,22 +10,31 @@
     "id": "catalog-submission",
     "url": "https://hermes-agent.nousresearch.com/docs/developer-guide/plugins/catalog-submission",
     "file": "sources/catalog-submission.md",
-    "sha256": "2b7ad9cd121e84e1548d95c090b5f465d99199bd49b0071699126d0ce0f61adf",
-    "captured_at": "2026-11-05T16:39:08.240105+00:00"
+    "sha256": "50fb0d704de1f1a1306b55f8db3d7a6a0d97f1343865d5c227069593ec6e2f19",
+    "captured_at": "2026-11-09T16:40:19.634598+00:00",
+    "retrieved_from": "https://raw.githubusercontent.com/NousResearch/hermes-agent/8719a66ef8e7e2a1bd705d595767874c66fd8a48/website/docs/developer-guide/plugins/catalog-submission.md",
+    "upstream_commit": "8719a66ef8e7e2a1bd705d595767874c66fd8a48",
+    "capture_format": "complete upstream UTF-8 Markdown"
   },
   {
     "id": "developer-guide",
     "url": "https://hermes-agent.nousresearch.com/docs/developer-guide/plugins",
     "file": "sources/developer-guide.md",
-    "sha256": "1713bfa1e0179eda875b24f37f91a2012170fd47b0608b6fa661da68dbade2ea",
-    "captured_at": "2026-11-05T16:39:08.293728+00:00"
+    "sha256": "630a6ee44c562a682ffcae52f602e8f8fc2d1cb5a0d76f1774a726de239b5b78",
+    "captured_at": "2026-11-09T16:40:19.432563+00:00",
+    "retrieved_from": "https://raw.githubusercontent.com/NousResearch/hermes-agent/8719a66ef8e7e2a1bd705d595767874c66fd8a48/website/docs/developer-guide/plugins/index.md",
+    "upstream_commit": "8719a66ef8e7e2a1bd705d595767874c66fd8a48",
+    "capture_format": "complete upstream UTF-8 Markdown"
   },
   {
     "id": "catalog-readme",
     "url": "https://raw.githubusercontent.com/NousResearch/hermes-agent/main/plugin-catalog/README.md",
     "file": "sources/catalog-readme.md",
     "sha256": "5d9ab744164bfc1c48c99d0f3051e4cc9d203cebf355287727eebe7fb176a5f3",
-    "captured_at": "2026-11-05T16:39:08.454520+00:00"
+    "captured_at": "2026-11-09T16:40:19.823400+00:00",
+    "retrieved_from": "https://raw.githubusercontent.com/NousResearch/hermes-agent/8719a66ef8e7e2a1bd705d595767874c66fd8a48/plugin-catalog/README.md",
+    "upstream_commit": "8719a66ef8e7e2a1bd705d595767874c66fd8a48",
+    "capture_format": "complete upstream UTF-8 Markdown"
   },
   {
     "id": "announcement-metadata",

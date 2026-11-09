@@ -40,11 +40,11 @@ def local_checks(data, registrations, add):
     try:
         manifest = mapping(data.get('plugin.yaml', b'').decode('utf-8'))
         valid = all(isinstance(manifest.get(k), str) and manifest[k].strip() for k in ('name', 'version', 'description'))
-        add('manifest', ['PRE-02'], 'pass' if valid else 'fail', 'Required manifest string fields ' + ('present' if valid else 'missing or invalid'))
+        add('manifest', ['PRE-02', 'DEV-01'], 'pass' if valid else 'fail', 'Required manifest string fields ' + ('present' if valid else 'missing or invalid'))
     except (ValueError, yaml.YAMLError, UnicodeError, TypeError):
-        add('manifest', ['PRE-02'], 'fail', 'plugin.yaml missing or malformed (including duplicate keys)')
+        add('manifest', ['PRE-02', 'DEV-01'], 'fail', 'plugin.yaml missing or malformed (including duplicate keys)')
     entries = [p for p in ('__init__.py', 'desktop/plugin.js', 'plugin.json', 'dashboard/manifest.json') if p in data]
-    add('entrypoint', ['PRE-02'], 'pass' if entries else 'fail', 'Entrypoint files: ' + (', '.join(entries) or 'none'))
+    add('entrypoint', ['PRE-02', 'DEV-01'], 'pass' if entries else 'fail', 'Entrypoint files: ' + (', '.join(entries) or 'none'))
     floor = manifest.get('requires_hermes', '')
     if floor and (not isinstance(floor, str) or not re.fullmatch(r'>=\s*\d{1,3}\.\d+(?:\.\d+)?', floor)):
         add('hermes-floor', ['CAT-14'], 'fail', 'Expected a SemVer floor such as >=0.22.5; dates and malformed values refused')
