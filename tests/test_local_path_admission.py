@@ -88,7 +88,7 @@ class LocalPathAdmissionTests(unittest.TestCase):
         self.candidate = self.root / 'candidate'
         self.candidate.mkdir()
         (self.candidate / 'plugin.yaml').write_text('name: demo\nversion: 1.0.0\ndescription: Demo\n')
-        (self.candidate / '__init__.py').write_text('def register(ctx):\n    pass\n')
+        (self.candidate / '__init__.py').write_bytes(b'def register(ctx):\n    pass\n')
         self.host = SimpleNamespace(dispatch_tool=lambda *a, **kw: self.fail('Unexpected terminal dispatch'))
 
     def test_common_guard_refuses_remote_names_before_lstat(self):
