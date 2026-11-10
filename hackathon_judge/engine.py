@@ -105,6 +105,9 @@ def finalise(report, review=None):
             for gate in ('code_ready', 'ready_to_submit', 'entry_submitted', 'catalog_accepted'):
                 if report['assessment']['readiness'][gate]['ready']:
                     report['verdict'] = 'reviewed_' + gate
+    # Admission is independent of competition-only failures; retain raw preflight.
+    if report['assessment']['readiness']['catalog_accepted']['ready']:
+        report['verdict'] = 'reviewed_catalog_accepted'
     return report
 
 
@@ -113,7 +116,7 @@ def review_template(report):
             'legacy_reviews_ignored': True,
             'demo_seconds': None, 'catalog_pr_url': '', 'demo_url': '', 'demo_tags_nous': False,
             'demo_shows_working_plugin': False, 'form_submitted': False,
-            'event_year': None, 'submitted_at': None,
+            'event_year': None, 'submitted_at': None, 'catalog_submitted_at': None,
             'reviews': {r['id']: {'decision': 'unreviewed', 'reviewer': '', 'evidence': [], 'reason': ''} for r in report['requirements']}}
 
 

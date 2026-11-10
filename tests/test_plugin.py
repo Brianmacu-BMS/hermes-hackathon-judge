@@ -2,6 +2,7 @@
 import importlib.util
 import json
 import os
+import shlex
 from pathlib import Path
 import sys
 import tempfile
@@ -12,6 +13,28 @@ spec = importlib.util.spec_from_file_location('judge_contract_plugin', ROOT / '_
 plugin = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = plugin
 spec.loader.exec_module(plugin)
+
+
+def native_payload(*, ok=True, warnings=None):
+    """Source-derived pinned native report fixture, not captured validator output."""
+    names = ('manifest', 'manifest fields', 'requires_hermes', 'config schema', 'requires_env', 'oauth',
+             'loadable', 'python dependencies', 'capability probe', 'built-in tool collisions',
+             'security scan', 'no core override', 'declared tools', 'declared hooks', 'declared middleware')
+    return {'ok': ok, 'checks': [{'name': name, 'ok': ok, 'detail': 'source-derived fixture'} for name in names],
+            'warnings': [] if warnings is None else warnings,
+            'isolation': {'verdict': 'host', 'host_ready': True, 'reasons': [], 'notes': [], 'ctx_methods': []}}
+
+
+def bound_reply(args, reply, unchanged=True):
+    """Faithful transaction envelope fixture; not live backend execution."""
+    if reply.get('error'):
+        return reply
+    request = json.loads(shlex.split(args['command'])[-1])
+    return {**reply, 'output': json.dumps({
+        'protocol': 'backend-snapshot-v1', 'nonce': request['nonce'],
+        'tree_sha256': request['tree_sha256'], 'bound_before': True,
+        'tree_unchanged': unchanged, 'validator_exit_code': reply['exit_code'],
+        'validator_output': reply['output']})}
 
 
 class Host:
@@ -35,9 +58,9 @@ class Host:
     def register_skill(self, name, path):
         self.skills[name] = path
 
-    def dispatch_tool(self, name, args):
+    def dispatch_tool(self, name, args, **kwargs):
         self.dispatches.append((name, args))
-        return self.reply
+        return bound_reply(args, self.reply)
 
 
 class PluginTests(unittest.TestCase):
@@ -75,7 +98,7 @@ class PluginTests(unittest.TestCase):
         self.assertNotIn('--yolo', self.host.dispatches[0][1]['command'])
 
     def test_complete_official_fixture_is_attributed_but_not_certified(self):
-        self.host.reply = {'exit_code': 0, 'output': json.dumps({'ok': True, 'checks': [{'name': name, 'ok': True} for name in ['manifest', 'loadable', 'capability probe', 'security scan', 'no core override']], 'warnings': []})}
+        self.host.reply = {'exit_code': 0, 'output': json.dumps(native_payload())}
         report = self.call(action='validate', trusted_code=True)
         self.assertEqual(report['official_validation']['status'], 'pass')
         self.assertFalse(report['official_validation']['install_deps'])
@@ -88,26 +111,26 @@ class PluginTests(unittest.TestCase):
         self.assertEqual(report['official_validation']['status'], 'error')
 
     def test_runtime_boolean_exit_code_is_not_a_success(self):
-        self.host.reply = {'exit_code': False, 'output': json.dumps({'ok': True, 'checks': [{'name': name, 'ok': True} for name in ['manifest', 'loadable', 'capability probe', 'security scan', 'no core override']], 'warnings': []})}
+        self.host.reply = {'exit_code': False, 'output': json.dumps(native_payload())}
         self.assertEqual(self.call(action='validate', trusted_code=True)['official_validation']['status'], 'error')
 
     def test_runtime_warnings_are_preserved_for_review(self):
         warnings = ['Fixture caution: inspect the named source before acceptance']
-        self.host.reply = {'exit_code': 0, 'output': json.dumps({'ok': True, 'checks': [{'name': name, 'ok': True} for name in ['manifest', 'loadable', 'capability probe', 'security scan', 'no core override']], 'warnings': warnings})}
+        self.host.reply = {'exit_code': 0, 'output': json.dumps(native_payload(warnings=warnings))}
         self.assertEqual(self.call(action='validate', trusted_code=True)['official_validation'].get('warnings'), warnings)
 
     def test_runtime_malformed_warning_table_is_not_a_success(self):
-        self.host.reply = {'exit_code': 0, 'output': json.dumps({'ok': True, 'checks': [{'name': name, 'ok': True} for name in ['manifest', 'loadable', 'capability probe', 'security scan', 'no core override']], 'warnings': {'invalid': 'not a list'}})}
+        self.host.reply = {'exit_code': 0, 'output': json.dumps(native_payload(warnings={'invalid': 'not a list'}))}
         self.assertEqual(self.call(action='validate', trusted_code=True)['official_validation']['status'], 'error')
 
     def test_official_failure_blocks(self):
-        self.host.reply = {'exit_code': 1, 'output': json.dumps({'ok': False, 'checks': [{'name': 'security scan', 'ok': False}], 'warnings': []})}
+        self.host.reply = {'exit_code': 1, 'output': json.dumps({'ok': False, 'checks': [{'name': 'security scan', 'ok': False, 'detail': 'fixture failure'}], 'warnings': [], 'isolation': None})}
         self.assertEqual(self.call(action='validate', trusted_code=True)['verdict'], 'blocked')
 
     def test_tree_changed_during_validation_invalidates_binding(self):
         def dispatch(name, args):
             (self.root / 'changed.py').write_text('print("changed")')
-            return {'exit_code': 0, 'output': json.dumps({'ok': True, 'checks': [{'name': name, 'ok': True} for name in ['manifest', 'loadable', 'capability probe', 'security scan', 'no core override']]})}
+            return bound_reply(args, {'exit_code': 0, 'output': json.dumps(native_payload())}, unchanged=False)
         self.host.dispatch_tool = dispatch
         report = self.call(action='validate', trusted_code=True)
         self.assertFalse(report['official_validation']['tree_unchanged'])

@@ -22,6 +22,7 @@ import struct
 import sys
 import zipfile
 from datetime import datetime, timezone
+from fnmatch import fnmatchcase
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -33,12 +34,10 @@ from hackathon_judge.paths import guarded_path, read_regular
 # Inclusion / exclusion rules
 # ---------------------------------------------------------------------------
 
-# Files matching any of these glob-like patterns (relative to source root)
-# are explicitly INCLUDED.  Directories in the list (trailing /) mean the
-# whole subtree is crawled.
+# Files matching these root-relative patterns are explicitly INCLUDED.
+# Ordinary wildcards match one component; ** matches zero or more directories.
 INCLUDE_PATTERNS = (
-    # Root metadata files (match exact name anywhere, but root-only is
-    # enforced by the caller — we only crawl what INCLUDE_PATTERNS allow)
+    # Root metadata files
     "plugin.yaml",
     "__init__.py",
     "requirements-test.txt",
@@ -203,6 +202,7 @@ def _iter_included(source_root: Path) -> list[tuple[str, Path, bool]]:
                 raise RejectedFile('REJECTED: unsafe source directory') from exc
             if name.casefold() in SENSITIVE_DIRS:
                 raise RejectedFile('REJECTED: credential-store directory')
+            _reject_secret(path.relative_to(source_root).as_posix(), name)
             if name not in EXCLUDE_DIRS:
                 kept.append(name)
         dirs[:] = kept
@@ -221,8 +221,18 @@ def _iter_included(source_root: Path) -> list[tuple[str, Path, bool]]:
 
 
 def _included(rel):
-    path = Path(rel)
-    return any((len(path.parts) == 1 and rel == pattern) if '/' not in pattern else path.match(pattern) for pattern in INCLUDE_PATTERNS)
+    """Match the entire root-relative POSIX path, never a trailing lookalike."""
+    def matches(parts, pattern):
+        if not pattern:
+            return not parts
+        if pattern[0] == '**':
+            return any(matches(parts[index:], pattern[1:])
+                       for index in range(len(parts) + 1))
+        return (bool(parts) and fnmatchcase(parts[0], pattern[0])
+                and matches(parts[1:], pattern[1:]))
+
+    return any(matches(rel.split('/'), pattern.split('/'))
+               for pattern in INCLUDE_PATTERNS)
 
 
 # ---------------------------------------------------------------------------
@@ -406,6 +416,7 @@ def build_archive(
         if current != original:
             changed.append(rel)
 
+    changed = sorted(set(changed))
     if changed:
         for c in changed:
             print(f"SOURCE_CHANGED: {c}", file=sys.stderr)

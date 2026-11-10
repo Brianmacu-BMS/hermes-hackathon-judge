@@ -1,11 +1,71 @@
 """Stable local path guards, not a sandbox against concurrent ancestor swaps."""
 import os
+import ntpath
+import re
 from pathlib import Path
 import stat
 
 
 class UnsafePath(ValueError):
     """A lexical path component is a link or Windows reparse point."""
+
+
+def _drive_type(root):
+    """Query only the drive root's Windows classification, never its target metadata."""
+    if os.name != 'nt':
+        return 0
+    import ctypes
+    query = ctypes.WinDLL('kernel32', use_last_error=True).GetDriveTypeW
+    query.argtypes = [ctypes.c_wchar_p]
+    query.restype = ctypes.c_uint
+    return query(root)
+
+
+def _drive_mapping(drive):
+    """Read the DOS-device table only; never follow a mapped filesystem target."""
+    if os.name != 'nt':
+        return ''
+    import ctypes
+    from ctypes import wintypes
+    query = ctypes.WinDLL('kernel32', use_last_error=True).QueryDosDeviceW
+    query.argtypes = (wintypes.LPCWSTR, wintypes.LPWSTR, wintypes.DWORD)
+    query.restype = wintypes.DWORD
+    buffer = ctypes.create_unicode_buffer(32768)
+    count = query(drive, buffer, len(buffer))
+    if not 0 < count <= len(buffer):
+        raise OSError('DOS-device mapping is unavailable')
+    return buffer.value
+
+
+def _local_drive_mapping(target):
+    # Deliberately conservative: SUBST, redirectors and unknown device targets
+    # are not proof of direct-local storage, even when GetDriveTypeW is local.
+    return re.fullmatch(r'\\Device\\(?:HarddiskVolume|CdRom|Floppy|Ramdisk)[0-9]+', target, re.IGNORECASE) is not None
+
+
+def admit_local_root(path):
+    """Lexical admission before expand/absolute/stat, plus conservative drive admission."""
+    text = os.fspath(path)
+    if not isinstance(text, str) or not text or '\x00' in text:
+        raise UnsafePath('A local text path is required')
+    windows = text.replace('\\', '/')
+    # Includes UNC, extended-length, NT/device namespace and POSIX double-root paths.
+    if windows.startswith('//') or windows.startswith('/??/'):
+        raise UnsafePath('Nonlocal and device roots are refused')
+    if text.startswith('\\'):
+        raise UnsafePath('Root-relative Windows paths are refused')
+    drive, tail = ntpath.splitdrive(text)
+    if drive:
+        if not re.fullmatch('[A-Za-z]:', drive) or not tail.startswith(('\\', '/')):
+            raise UnsafePath('Ambiguous or nonlocal Windows root is refused')
+        try:
+            local = (_drive_type(drive + '\\') in {2, 3, 5, 6}
+                     and _local_drive_mapping(_drive_mapping(drive)))
+        except (OSError, AttributeError):
+            local = False
+        if not local:
+            raise UnsafePath('Remote, missing, aliased or unclassified drives are refused')
+    return path
 
 
 def guarded_path(path, *, root=None):
@@ -15,7 +75,11 @@ def guarded_path(path, *, root=None):
     is newer and symlink mode alone does not detect Windows junctions. Refuse
     all reparse points, including in-scope ones, rather than guessing tag safety.
     """
+    admit_local_root(path)
+    if root is not None:
+        admit_local_root(root)
     absolute = Path(path).expanduser().absolute()
+    admit_local_root(absolute)
     for component in reversed((absolute, *absolute.parents)):
         info = component.lstat()
         if (stat.S_ISLNK(info.st_mode)

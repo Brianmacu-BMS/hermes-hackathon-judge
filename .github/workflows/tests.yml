@@ -35,7 +35,7 @@ jobs:
           python -O -m unittest discover -s tests -v
 
   windows-boundaries:
-    # Focused native proof only; the Bash-dependent full suite remains Linux.
+    # Focused native/portable controls; Bash-dependent full suites remain Linux.
     runs-on: windows-latest
     timeout-minutes: 10
     strategy:
@@ -77,4 +77,24 @@ jobs:
           python -m unittest discover -s tests -p test_checkout_bytes.py -v
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -O -m unittest discover -s tests -p test_checkout_bytes.py -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Correctness regressions (not live backend acceptance)
+        shell: pwsh
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+          TMPDIR: ${{ runner.temp }}
+          TEMP: ${{ runner.temp }}
+          TMP: ${{ runner.temp }}
+        run: |
+          foreach ($suite in @('test_correctness_packaging.py', 'test_correctness_analysis.py', 'test_correctness_evidence.py', 'test_correctness_release.py', 'test_local_path_admission.py', 'test_review_branch_regressions.py', 'test_review_gate_regressions.py', 'test_runtime_report_regressions.py', 'test_reconciled_report_contract.py')) {
+            python -m unittest discover -s tests -p $suite -v
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            python -O -m unittest discover -s tests -p $suite -v
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          # POSIX executable validator-fixture cases run in the Linux full suite.
+          # These select portable integration/CLI cases, not a Windows backend proof.
+          python -m unittest discover -s tests -p test_correctness_integration.py -k unbound_remote -k invocation_identity -k literal_trusted -k slash -k explicit_ -k standalone_ -k ignored_uninspected -k fresh_bound -k runtime_ -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -O -m unittest discover -s tests -p test_correctness_integration.py -k unbound_remote -k invocation_identity -k literal_trusted -k slash -k explicit_ -k standalone_ -k ignored_uninspected -k fresh_bound -k runtime_ -v
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

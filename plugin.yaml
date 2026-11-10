@@ -1,5 +1,5 @@
 name: hackathon-judge
-version: 0.3.0
+version: 0.3.1
 description: Source-linked Hermes hackathon and catalog preflight with explicit human review gates
 requires_hermes: ">=0.22.5"
 author: Macu
