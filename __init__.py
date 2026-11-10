@@ -6,6 +6,7 @@ import shlex
 from .hackathon_judge.cli import parser_setup, run
 from .hackathon_judge.engine import audit, markdown, requirements, review_template
 from .hackathon_judge.runtime import validate_through_host
+from .hackathon_judge.paths import admit_local_root, guarded_path
 
 SCHEMA = {
     'name': 'hackathon_judge',
@@ -29,15 +30,27 @@ def _native_paths(args):
     """Bind native inputs once to this session without erasing lexical aliases."""
     if not isinstance(args.get('path'), str) or not args['path'].strip():
         raise ValueError('Explicit candidate path required')
+    for name in ('path', 'catalog', 'submission', 'review'):
+        if args.get(name) is not None:
+            admit_local_root(args[name])
     paths = {name: Path(args[name]).expanduser() if args.get(name) is not None else None
              for name in ('path', 'catalog', 'submission', 'review')}
     if any(path is not None and not path.is_absolute() for path in paths.values()):
         # This documented host seam is invocation-scoped. Keep the standalone
         # CLI independent of Hermes, and fail closed if native context is absent.
-        from agent.runtime_cwd import resolve_agent_cwd
-        cwd = Path(resolve_agent_cwd()).expanduser()
+        from agent.runtime_cwd import resolve_agent_cwd, scoped_session_cwd
+        declared = scoped_session_cwd()
+        # The host resolver deliberately falls back for missing session folders.
+        # That is unsafe for explicit scoped native inputs: honor or refuse it.
+        base = declared if declared else resolve_agent_cwd()
+        admit_local_root(base)
+        cwd = Path(base).expanduser()
         if not cwd.is_absolute():
             raise ValueError('Session working directory must be absolute')
+        # Non-following ancestor/reparse inspection must precede is_dir().
+        cwd = guarded_path(cwd)
+        if not cwd.is_dir():
+            raise ValueError('Session working directory must exist and be absolute')
         paths = {name: cwd / path if path is not None and not path.is_absolute() else path
                  for name, path in paths.items()}
     # Do not resolve() or chdir(): the existing guards must still see every
@@ -57,7 +70,8 @@ def handle(ctx, args, **kwargs):
         if action == 'validate':
             if args.get('trusted_code') is not True:
                 return json.dumps({'error': 'validate imports and executes candidate code. Obtain user authorization for this exact candidate and set trusted_code; Hermes terminal approvals still apply.'})
-            report = validate_through_host(ctx, report, catalog=paths['catalog'], submission=paths['submission'], review=paths['review'])
+            report = validate_through_host(ctx, report, catalog=paths['catalog'], submission=paths['submission'], review=paths['review'],
+                                           **{key: kwargs[key] for key in ('task_id', 'session_id') if key in kwargs})
         return json.dumps(review_template(report) if action == 'template' else report)
     except Exception as exc:
         return json.dumps({'error': 'Audit failed; verify candidate path and document format', 'kind': type(exc).__name__})
@@ -65,7 +79,13 @@ def handle(ctx, args, **kwargs):
 
 def slash(raw):
     try:
-        tokens = shlex.split(raw)
+        # These are path arguments, not a shell program. Keep backslashes literal
+        # on every host while retaining POSIX single/double quotes and spaces.
+        lexer = shlex.shlex(raw, posix=True)
+        lexer.whitespace_split = True
+        lexer.commenters = ''
+        lexer.escape = ''
+        tokens = list(lexer)
         if not tokens:
             return 'Usage: /judge-plugin <local-path> [--catalog FILE] [--submission FILE]. Static only; runtime validation requires explicit trusted-code action.'
         # argparse is shared with standalone CLI, with errors returned rather than

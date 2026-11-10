@@ -388,45 +388,15 @@ class TestBuildSourceArchiveChangeDetection(unittest.TestCase):
         self.output = self.work / "output"
 
     def test_fails_when_source_changes_during_build(self):
-        """Simulate a source change by replacing the builder with a wrapper
-        that modifies a file mid-archive-build.  We can't easily monkey-patch a
-        subprocess, so instead we check that a *subsequent* build catches a
-        changed file, or we use a short script that calls the builder and
-        modifies before it finishes.
-
-        For practical testing, we verify the change-detection logic directly:
-        if we modify a source file between two reads, the second sha256 will
-        differ and the build should fail.
-        """
+        """Exercise the actual rejection branch after a deterministic ZIP write."""
+        import importlib.util
+        import test_correctness_packaging as packaging_tests
         _make_fixture(self.root, VALID_FIXTURE)
-        # Run once to ensure clean build
-        cmd = [sys.executable, str(self.script), str(self.root),
-               "--output", str(self.output)]
-        proc1 = subprocess.run(cmd, capture_output=True, text=True, cwd=str(PROJECT_ROOT))
-        self.assertEqual(
-            proc1.returncode, 0,
-            msg=f"First build failed:\n{proc1.stderr}",
-        )
-
-        # Clean output for second build
-        shutil.rmtree(self.output)
-        self.output.mkdir(parents=True, exist_ok=True)
-
-        # Modify a file after the first read (simulate concurrent change)
-        # The script reads each file, so we can't time it from here.
-        # Instead, test that the manifest path is outside source tree and
-        # that the archive is correct — the *concurrent* change case is
-        # inherently racy.  We assert the builder *would* detect it by
-        # verifying that a manual hash check works.
-        import hashlib
-        src_file = self.root / "README.md"
-        original_hash = hashlib.sha256(src_file.read_bytes()).hexdigest()
-        src_file.write_text("# MODIFIED AFTER FIRST READ\n")
-        new_hash = hashlib.sha256(src_file.read_bytes()).hexdigest()
-        self.assertNotEqual(
-            original_hash, new_hash,
-            "Fixture error: file should change after write",
-        )
+        spec = importlib.util.spec_from_file_location('release_change_builder', self.script)
+        builder = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(builder)
+        packaging_tests.assert_during_build_change_rejected(
+            self, builder, self.root, self.output, 'modify')
 
 
 class TestDemoScript(unittest.TestCase):

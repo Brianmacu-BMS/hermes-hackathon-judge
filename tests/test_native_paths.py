@@ -4,12 +4,12 @@ The public cwd boundary is a unit fixture here. CI-only installed acceptance
 uses the real Hermes resolver and session context on both supported releases.
 """
 from contextvars import ContextVar
-from contextlib import redirect_stdout
+from contextlib import redirect_stdout, ExitStack
 import importlib.util
 import io
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 import shlex
 import stat
 import subprocess
@@ -48,6 +48,7 @@ class NativePathTests(unittest.TestCase):
         self.resolver = Mock(side_effect=self.cwd.get)
         module = ModuleType('agent.runtime_cwd')
         setattr(module, 'resolve_agent_cwd', self.resolver)
+        setattr(module, 'scoped_session_cwd', lambda: '')
         self.sdk = patch.dict(sys.modules, {'agent.runtime_cwd': module})
         self.sdk.start()
         self.addCleanup(self.sdk.stop)
@@ -168,6 +169,83 @@ class NativePathTests(unittest.TestCase):
         with patch.object(Path, 'lstat', flagged), patch('os.open', side_effect=AssertionError('Read refused candidate')):
             self.assertIn('error', json.loads(plugin.handle(self.host, {'path': 'candidate'})))
             self.assertIn('Unable to audit', plugin.slash('candidate'))
+
+    def test_nonlocal_scope_and_shared_guards_reject_before_any_metadata(self):
+        # Reviewer minimum reproduction, with every native metadata escape denied.
+        import ntpath
+        from hackathon_judge import paths as shared
+        native_shared = sys.modules[plugin.__package__ + '.hackathon_judge.paths']
+        probes = []
+        def forbidden(*args, **kwargs):
+            probes.append(str(args[0]) if args else 'native')
+            raise AssertionError('Metadata must not run on a nonlocal root')
+        class InterceptWindowsPath(PureWindowsPath):
+            def expanduser(self): return self
+            def absolute(self): return self
+            is_dir = is_file = exists = stat = lstat = resolve = forbidden
+        cases = [r'\\invalid-review-host\never-contact\workspace',
+                 r'\\?\UNC\invalid-review-host\never-contact\workspace',
+                 r'\\?\C:\workspace', r'\\.\C:\workspace',
+                 r'Z:\review-workspace', r'C:drive-relative']
+        for declared in cases:
+            for route in ('tool', 'slash', 'guarded_path', 'guarded_root'):
+                probes.clear()
+                module = ModuleType('agent.runtime_cwd')
+                module.scoped_session_cwd = lambda: declared
+                module.resolve_agent_cwd = Mock(side_effect=AssertionError('No fallback'))
+                with self.subTest(declared=declared, route=route), ExitStack() as stack:
+                    # argparse's translation lookup is unrelated local metadata;
+                    # bypass only gettext, leaving every filesystem route denied.
+                    stack.enter_context(patch('argparse._', side_effect=lambda text: text))
+                    stack.enter_context(patch.dict(sys.modules, {'agent.runtime_cwd': module}))
+                    for owner in (plugin, shared, native_shared):
+                        stack.enter_context(patch.object(owner, 'Path', InterceptWindowsPath))
+                    for owner in (shared, native_shared):
+                        stack.enter_context(patch.object(owner, '_drive_type', return_value=4, create=True))
+                    for name in ('stat', 'lstat', 'scandir', 'open'):
+                        stack.enter_context(patch.object(os, name, forbidden))
+                    for owner in (os.path, ntpath):
+                        for name in ('isdir', 'isfile', 'exists', 'lexists', 'islink', 'realpath'):
+                            stack.enter_context(patch.object(owner, name, forbidden))
+                    if route == 'tool':
+                        self.assertIn('error', json.loads(plugin.handle(self.host, {'path': 'candidate'})))
+                    elif route == 'slash':
+                        self.assertIn('Unable to audit', plugin.slash('candidate'))
+                    else:
+                        with self.assertRaises(ValueError):
+                            shared.guarded_path(declared if route == 'guarded_path' else r'C:\local',
+                                                root=declared if route == 'guarded_root' else None)
+                    self.assertEqual(probes, [])
+                    module.resolve_agent_cwd.assert_not_called()
+
+    def test_projected_windows_drive_admission_and_local_path_controls(self):
+        from hackathon_judge import paths as shared
+        probes = []
+        for kind in (0, 1, 2, 3, 4, 5, 6):
+            with self.subTest(kind=kind), patch.object(shared, '_drive_type', return_value=kind, create=True), patch.object(shared, '_drive_mapping', return_value=r'\Device\HarddiskVolume1', create=True), patch('os.stat', side_effect=AssertionError('No metadata')):
+                admission = getattr(shared, 'admit_local_root', lambda p: p)
+                if kind in {2, 3, 5, 6}:
+                    self.assertEqual(admission(r'C:\local\candidate'), r'C:\local\candidate')
+                else:
+                    with self.assertRaises(ValueError): admission(r'Z:\candidate')
+        # Existing real POSIX local absolute/relative coverage remains above.
+        self.assertEqual(shared.guarded_path(self.candidate), self.candidate)
+        self.assertEqual(shared.guarded_path('candidate'), self.decoy)
+
+    def test_local_scope_alias_rejected_before_following_directory_predicate(self):
+        original = Path.lstat
+        followed = []
+        def flagged(current, *args, **kwargs):
+            if current == self.session:
+                return SimpleNamespace(st_mode=stat.S_IFDIR, st_file_attributes=0x400)
+            return original(current, *args, **kwargs)
+        def following(current):
+            followed.append(str(current))
+            raise AssertionError('Alias was followed')
+        with patch.object(Path, 'lstat', flagged), patch.object(Path, 'is_dir', following):
+            self.assertIn('error', json.loads(plugin.handle(self.host, {'path': 'candidate'})))
+            self.assertIn('Unable to audit', plugin.slash('candidate'))
+        self.assertEqual(followed, [])
 
     @unittest.skipIf(os.name == 'nt', 'POSIX links; native junction case runs on Windows')
     def test_relative_link_and_link_before_dotdot_are_not_resolved_away(self):

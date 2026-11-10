@@ -87,9 +87,18 @@ def probe(core, source, mode, candidate):
     with patch.object(terminal, 'handler', observing_handler):
         report = dispatch({'action': 'validate', 'path': str(candidate), 'trusted_code': True})
     require(len(observed) == 1, 'Expected exactly one native terminal dispatch')
-    require(shlex.split(observed[0]['args']['command']) ==
-            ['hermes', 'plugins', 'validate', str(candidate), '--json'],
-            'Validator dispatch changed or requested extra privileges/dependencies')
+    argv = shlex.split(observed[0]['args']['command'])
+    require(len(argv) == 8 and argv[:4] == ['python3', '-I', '-B', '-c'],
+            'Expected normal terminal-owned bound transaction')
+    helper = Path(argv[5])
+    require(helper.name == 'bound_validation.py'
+            and helper.is_relative_to(Path(os.environ['HERMES_HOME']) / 'plugins' / 'hackathon-judge')
+            and hashlib.sha256(helper.read_bytes()).hexdigest() == argv[6],
+            'Transaction must select exact installed helper bytes')
+    request = json.loads(argv[7])
+    require(request['candidate'] == str(candidate) and request['files']
+            and '--install-deps' not in argv and '--yolo' not in argv,
+            'Missing original candidate binding or unexpected privilege/dependency flags')
     receipt = report.get('official_validation', {})
     require(report.get('certified') is False, 'Runtime result must never imply certification')
     if mode == 'denied':
@@ -159,6 +168,15 @@ def session_paths(home, dispatch):
     try:
         require(dispatch({'path': 'fixture'}).get('candidate') == str(other), 'Tool cached another session cwd')
         require(json.loads(slash('fixture --format json')).get('candidate') == str(other), 'Slash cached another session cwd')
+    finally:
+        reset_session_cwd(token)
+    missing = home / 'missing explicit session'
+    token = set_session_cwd(str(missing))
+    try:
+        require('error' in dispatch({'path': 'fixture'}), 'Tool accepted missing scoped workspace fallback')
+        require('Unable to audit' in slash('fixture'), 'Slash accepted missing scoped workspace fallback')
+        require(dispatch({'path': str(candidate)}).get('candidate') == str(candidate),
+                'Absolute native paths incorrectly require a session directory')
     finally:
         reset_session_cwd(token)
     require(Path.cwd() == process, 'Native handlers changed process cwd')
@@ -242,7 +260,9 @@ def main(core, source):
     relative_cli = json.loads(run('cli-relative-path', cli + ['hackathon-judge', 'fixture', '--format', 'json'],
                                   2, cwd=Path(path_receipt['session_cwd'])))
     require(relative_cli.get('candidate') == path_receipt['candidate'], 'Native terminal CLI lost process cwd semantics')
-    run('policy-deny', cli + ['config', 'set', 'approvals.deny', '["hermes plugins validate *"]'])
+    # The approved command is now the explicit bound Python transaction, not a
+    # bare Hermes validator command. This runner-only deny is intentionally broad.
+    run('policy-deny', cli + ['config', 'set', 'approvals.deny', '["python3 *"]'])
     denied = run('native-denial', [sys.executable, __file__, '--probe', 'denied', str(candidate)])
     run('policy-remove-test-deny', cli + ['config', 'set', 'approvals.deny', '[]'])
     allowed = run('native-validation', [sys.executable, __file__, '--probe', 'allowed', str(candidate)])

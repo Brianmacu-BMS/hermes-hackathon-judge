@@ -192,6 +192,9 @@ def _registration(index, data, manifest):
     if resolved is None:return 'needs_review', 'Imported or dynamic registration cannot be resolved statically; inspect the real loader'
     function = resolved[1]
     if isinstance(function, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+        # Decorators may replace the signature entirely; inspect the resulting callable.
+        if getattr(function, 'decorator_list', []):
+            return 'needs_review', 'Decorated registration requires actual supported-loader evidence'
         args = function.args
         positional = len(args.posonlyargs) + len(args.args)
         required = positional - len(args.defaults)

@@ -4,7 +4,7 @@
   "notice": "Submission worksheet template, not a live publication-status record. Bind actual qualified source, catalog, demo and form evidence in the operation handoff. Existing acceptance of an older pin does not qualify this revision. Macu owns the demo and form submission. MISSING is an unfulfilled evidence field, never a completed claim.",
   "plugin": {
     "name": "hackathon-judge",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "requires_hermes": ">=0.22.5",
     "tier": "community",
     "category": "tools"

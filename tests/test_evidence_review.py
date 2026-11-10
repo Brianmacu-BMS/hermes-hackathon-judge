@@ -32,8 +32,14 @@ class ReviewEvidenceTests(unittest.TestCase):
             self.doc['decisions'][rid].update(decision='pass', reason='Fixture source inspected against the named requirement.', evidence=[self.ref.copy()])
         self.validator = {'schema_version': 1, 'kind': 'hermes-validation', 'candidate_sha256': self.report['inventory']['tree_sha256'],
                           'candidate_after_sha256': self.report['inventory']['tree_sha256'], 'install_deps': True,
+                          'hermes_version': '0.23.0', 'hermes_commit': '2bd378ed1b8d6bf2192cb26e0a55ff3091e6bd19',
+                          'policy_sha256': self.doc['policy_sha256'],
                           'exit_code': 0, 'command': ['hermes', 'plugins', 'validate', str(self.candidate), '--install-deps', '--json'],
-                          'report': {'ok': True, 'checks': [{'name': n, 'ok': True, 'detail': 'fixture'} for n in ['manifest', 'loadable', 'capability probe', 'security scan', 'no core override']], 'warnings': []}}
+                          'report': {'ok': True, 'checks': [{'name': n, 'ok': True, 'detail': 'fixture'} for n in [
+                              'manifest', 'manifest fields', 'requires_hermes', 'config schema', 'requires_env', 'oauth',
+                              'loadable', 'python dependencies', 'capability probe', 'declared tools', 'declared hooks',
+                              'declared middleware', 'built-in tool collisions', 'security scan', 'no core override']],
+                              'warnings': [], 'isolation': {'verdict': 'host', 'host_ready': True, 'reasons': [], 'notes': [], 'ctx_methods': []}}}
         self.attach_validator()
 
     def attach_validator(self):

@@ -44,6 +44,17 @@ def local_checks(data, registrations, add):
     except (ValueError, yaml.YAMLError, UnicodeError, TypeError):
         add('manifest', ['PRE-02', 'DEV-01'], 'fail', 'plugin.yaml missing or malformed (including duplicate keys)')
     entries = [p for p in ('__init__.py', 'desktop/plugin.js', 'plugin.json', 'dashboard/manifest.json') if p in data]
+    raw = manifest.get('provides_locales')
+    locale_entries = [raw] if isinstance(raw, (str, dict)) else raw
+    locale_ids = []
+    for entry in locale_entries if isinstance(locale_entries, list) else []:
+        lang = entry.get('id', '') if isinstance(entry, dict) else entry
+        if isinstance(lang, str):
+            lang = lang.strip().lower().replace('_', '-')
+            if re.fullmatch(r'[a-z]{2,3}(-[a-z0-9]{2,8})*', lang):
+                locale_ids.append(lang)
+    if locale_ids and all(any(f'locales/{lang}.{ext}' in data for ext in ('yaml', 'yml')) for lang in locale_ids):
+        entries.append('locales/ (declared language pack; official locale checks still required)')
     add('entrypoint', ['PRE-02', 'DEV-01'], 'pass' if entries else 'fail', 'Entrypoint files: ' + (', '.join(entries) or 'none'))
     floor = manifest.get('requires_hermes', '')
     if floor and (not isinstance(floor, str) or not re.fullmatch(r'>=\s*\d{1,3}\.\d+(?:\.\d+)?', floor)):
@@ -68,12 +79,12 @@ def _registrations(manifest, actual, add):
         value = manifest.get('provides_' + kind, [])
         if not isinstance(value, list) or any(not isinstance(x, str) for x in value):
             mismatches.append('Invalid provides_' + kind)
-        elif set(value) != actual[kind]:
-            mismatches.append(kind + ' declarations differ from literal registrations')
-    if actual['dynamic']:
-        status, detail = 'needs_review', 'Dynamic registration or unparseable source; official runtime probe required'
-    elif mismatches:
+        elif actual[kind] - set(value) or (not actual['dynamic'] and set(value) != actual[kind]):
+            mismatches.append(kind + ' declarations differ from reachable literal registrations')
+    if mismatches:
         status, detail = 'fail', '; '.join(mismatches)
+    elif actual['dynamic']:
+        status, detail = 'needs_review', 'Dynamic registration or unparseable source; official runtime probe required'
     else:
         status, detail = 'pass', 'Static literal tool/hook declarations match; does not prove runtime capabilities, middleware or env parity'
     add('declared-registrations', ['CAT-06'], status, detail)

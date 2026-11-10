@@ -1,4 +1,9 @@
-"""Standalone CLI. Output is stdout-only unless the caller redirects it."""
+"""Standalone CLI. Output is stdout-only unless the caller redirects it.
+
+Standalone parse errors are bounded JSON/exit 3. Hermes owns native subparser
+parsing before cli_handler runs: native unknown-option/invalid-choice errors may
+still be argparse usage on stderr/exit 2. This module does not alter host parsers.
+"""
 import argparse
 import json
 
@@ -40,5 +45,23 @@ def run(args):
     return 0 if report['assessment']['readiness'][getattr(args, 'gate', 'code_ready')]['ready'] else 2
 
 
+class _ArgumentError(ValueError):
+    pass
+
+
+class _StandaloneParser(argparse.ArgumentParser):
+    def error(self, message):
+        # Never expose user-supplied tokens, argparse usage, or document contents.
+        raise _ArgumentError('Invalid command arguments')
+
+
 def main(argv=None):
-    return run(parser_setup(argparse.ArgumentParser(description='Hermes Hackathon Judge: non-executing preflight, never official certification')).parse_args(argv))
+    # Native CLI subparsers belong to Hermes. Their parse errors happen before
+    # our handler; this structured-error guarantee is standalone-only.
+    parser = parser_setup(_StandaloneParser(description='Hermes Hackathon Judge: non-executing preflight, never official certification'))
+    try:
+        args = parser.parse_args(argv)
+    except _ArgumentError:
+        print(json.dumps({'error': 'Invalid command arguments; check --help', 'kind': 'ArgumentError'}))
+        return 3
+    return run(args)
